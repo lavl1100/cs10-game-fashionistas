@@ -2,63 +2,43 @@ import arcade
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Keyboard Movement Example"
-
-MOVEMENT_SPEED = 8   # ⬅️ faster (was 5)
 
 
-class MyGame(arcade.Window):
-
+class Game(arcade.Window):
     def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, "Mouse Follow Sprite")
 
-        arcade.set_background_color(arcade.color.BLACK)
-
-        self.sprite_list = None
         self.player = None
+        self.player_list = None
+
+        self.mouse_x = 0
+        self.mouse_y = 0
 
     def setup(self):
-        self.sprite_list = arcade.SpriteList()
+        # Create sprite
+        self.player = arcade.Sprite("assets/my_sprite.png", scale=0.3)
+        self.player.center_x = 400
+        self.player.center_y = 300
 
-        self.player = arcade.Sprite(
-            ":resources:images/space_shooter/playerShip1_blue.png",
-            scale=0.3   # ⬅️ smaller (was 0.5)
-        )
-        self.player.center_x = SCREEN_WIDTH // 2
-        self.player.center_y = SCREEN_HEIGHT // 2
+        # Put sprite in a SpriteList (required for drawing)
+        self.player_list = arcade.SpriteList()
+        self.player_list.append(self.player)
 
-        self.sprite_list.append(self.player)
+    def on_mouse_motion(self, x, y, dx, dy):
+        self.mouse_x = x
+        self.mouse_y = y
+
+    def on_update(self, delta_time):
+        # Smooth follow toward mouse
+        self.player.center_x += (self.mouse_x - self.player.center_x) * 0.1
+        self.player.center_y += (self.mouse_y - self.player.center_y) * 0.1
 
     def on_draw(self):
         self.clear()
-        self.sprite_list.draw()
-
-    def on_update(self, delta_time):
-        self.player.center_x += self.player.change_x
-        self.player.center_y += self.player.change_y
-
-    def on_key_press(self, key, modifiers):
-        if key == arcade.key.W or key == arcade.key.UP:
-            self.player.change_y = MOVEMENT_SPEED
-        elif key == arcade.key.S or key == arcade.key.DOWN:
-            self.player.change_y = -MOVEMENT_SPEED
-        elif key == arcade.key.A or key == arcade.key.LEFT:
-            self.player.change_x = -MOVEMENT_SPEED
-        elif key == arcade.key.D or key == arcade.key.RIGHT:
-            self.player.change_x = MOVEMENT_SPEED
-
-    def on_key_release(self, key, modifiers):
-        if key in (arcade.key.W, arcade.key.UP, arcade.key.S, arcade.key.DOWN):
-            self.player.change_y = 0
-        elif key in (arcade.key.A, arcade.key.LEFT, arcade.key.D, arcade.key.RIGHT):
-            self.player.change_x = 0
+        self.player_list.draw()
 
 
-def main():
-    game = MyGame()
-    game.setup()
-    arcade.run()
-
-
-if __name__ == "__main__":
-    main()
+# Run the game
+game = Game()
+game.setup()
+arcade.run()
