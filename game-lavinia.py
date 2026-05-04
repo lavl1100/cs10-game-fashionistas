@@ -1,51 +1,62 @@
-"""CS10 Arcade starter game.
-
-One student on each team owns edits to this file.
-Other students build features in game-yourname.py files and share them for integration.
-"""
-
 import arcade
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "CS10 Arcade Team Game"
+SCREEN_TITLE = "Keyboard Movement Example"
+
+MOVEMENT_SPEED = 8   # ⬅️ faster (was 5)
 
 
-class GameView(arcade.View):
-    """Minimal view students can extend."""
+class MyGame(arcade.Window):
 
-    def __init__(self) -> None:
-        super().__init__()
-        self.background_color = arcade.csscolor.DARK_SLATE_BLUE
+    def __init__(self):
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
-    def on_show_view(self) -> None:
-        arcade.set_background_color(self.background_color)
+        arcade.set_background_color(arcade.color.BLACK)
 
-    def on_draw(self) -> None:
+        self.sprite_list = None
+        self.player = None
+
+    def setup(self):
+        self.sprite_list = arcade.SpriteList()
+
+        self.player = arcade.Sprite(
+            ":resources:images/space_shooter/playerShip1_blue.png",
+            scale=0.3   # ⬅️ smaller (was 0.5)
+        )
+        self.player.center_x = SCREEN_WIDTH // 2
+        self.player.center_y = SCREEN_HEIGHT // 2
+
+        self.sprite_list.append(self.player)
+
+    def on_draw(self):
         self.clear()
-        arcade.draw_text(
-            "CS10 Arcade Starter",
-            SCREEN_WIDTH / 2,
-            SCREEN_HEIGHT / 2 + 24,
-            arcade.color.WHITE,
-            28,
-            anchor_x="center",
-        )
-        arcade.draw_text(
-            "Edit game.py (owner) or your game-yourname.py file",
-            SCREEN_WIDTH / 2,
-            SCREEN_HEIGHT / 2 - 20,
-            arcade.color.LIGHT_GRAY,
-            14,
-            anchor_x="center",
-        )
+        self.sprite_list.draw()
+
+    def on_update(self, delta_time):
+        self.player.center_x += self.player.change_x
+        self.player.center_y += self.player.change_y
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.W or key == arcade.key.UP:
+            self.player.change_y = MOVEMENT_SPEED
+        elif key == arcade.key.S or key == arcade.key.DOWN:
+            self.player.change_y = -MOVEMENT_SPEED
+        elif key == arcade.key.A or key == arcade.key.LEFT:
+            self.player.change_x = -MOVEMENT_SPEED
+        elif key == arcade.key.D or key == arcade.key.RIGHT:
+            self.player.change_x = MOVEMENT_SPEED
+
+    def on_key_release(self, key, modifiers):
+        if key in (arcade.key.W, arcade.key.UP, arcade.key.S, arcade.key.DOWN):
+            self.player.change_y = 0
+        elif key in (arcade.key.A, arcade.key.LEFT, arcade.key.D, arcade.key.RIGHT):
+            self.player.change_x = 0
 
 
-def main() -> None:
-    """Start the game window."""
-    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-    view = GameView()
-    window.show_view(view)
+def main():
+    game = MyGame()
+    game.setup()
     arcade.run()
 
 
