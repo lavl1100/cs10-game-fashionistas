@@ -15,8 +15,8 @@ class ThriftItem:
     def __init__(self, x, y):
         textures = [
             "assets/shirt.png",
-            "assets/jacket.png",
-            "assets/shoes.png"
+            "assets/pants.png",
+            "assets/dress.png"
         ]
 
         texture_path = random.choice(textures)
