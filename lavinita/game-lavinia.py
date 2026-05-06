@@ -3,35 +3,29 @@ import random
 
 SCREEN_WIDTH = 900
 SCREEN_HEIGHT = 650
-SCREEN_TITLE = "Thrift & Fashion Impact Game"
+SCREEN_TITLE = "Thrift & Fashion Game (Fixed)"
 
 STARTING_MONEY = 100
 RACK_SIZE = 12
 SPACING = 120
 
-FAST_FASHION_FABRICS = ["polyester", "nylon", "rayon", "acrylic"]
-ECO_FABRICS = ["cotton", "linen", "wool", "hemp"]
+FAST_FASHION = ["polyester", "nylon", "rayon", "acrylic"]
+ECO = ["cotton", "linen", "wool", "hemp"]
 
 
-class ThriftItem:
+class Item:
     def __init__(self):
-        textures = [
-            "assets/shirt.png",
-            "assets/dress.png",
-            "assets/pants.png"
-        ]
+        textures = ["assets/shirt.png", "assets/dress.png", "assets/pants.png"]
 
         self.sprite = arcade.Sprite(random.choice(textures), scale=0.4)
 
-        # Fabric type
         if random.random() < 0.5:
-            self.fabric = random.choice(FAST_FASHION_FABRICS)
+            self.fabric = random.choice(FAST_FASHION)
             self.eco = False
         else:
-            self.fabric = random.choice(ECO_FABRICS)
+            self.fabric = random.choice(ECO)
             self.eco = True
 
-        # Pricing
         if self.eco:
             self.price = random.randint(15, 35)
             self.value = random.randint(30, 70)
@@ -42,136 +36,110 @@ class ThriftItem:
             self.sprite.color = (255, 220, 220)
 
 
-class ThriftGame(arcade.Window):
+class Game(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
         arcade.set_background_color((245, 240, 230))
 
         self.rack = []
-        self.sprite_list = arcade.SpriteList()
+        self.sprites = arcade.SpriteList()
         self.inventory = []
 
-        self.current_index = 0
-        self.target_offset = 0
-        self.current_offset = 0
+        self.index = 0
+        self.offset = 0
+        self.target = 0
 
         self.money = STARTING_MONEY
         self.score = 0
-        self.message = ""
+        self.msg = ""
 
-        self.game_over = False
+        self.end = False
 
     def setup(self):
         self.rack.clear()
-        self.sprite_list = arcade.SpriteList()
+        self.sprites = arcade.SpriteList()
         self.inventory.clear()
 
-        self.current_index = 0
-        self.target_offset = 0
-        self.current_offset = 0
+        self.index = 0
+        self.offset = 0
+        self.target = 0
 
         self.money = STARTING_MONEY
         self.score = 0
-        self.message = ""
-        self.game_over = False
+        self.msg = ""
+        self.end = False
 
         for _ in range(RACK_SIZE):
-            item = ThriftItem()
+            item = Item()
             self.rack.append(item)
-            self.sprite_list.append(item.sprite)
+            self.sprites.append(item.sprite)
 
-        self.update_positions()
+        self.update()
 
-    def update_positions(self):
-        center_x = SCREEN_WIDTH // 2
+    def update(self):
+        center = SCREEN_WIDTH // 2
 
         for i, item in enumerate(self.rack):
-            offset = (i * SPACING) - self.current_offset
-            x = center_x + offset
-
-            dist = abs(i - self.current_index)
-
-            scale = max(0.25, 0.5 - dist * 0.05)
-            alpha = max(120, 255 - dist * 40)
-
-            item.sprite.scale = scale
-            item.sprite.alpha = alpha
+            x = center + (i * SPACING) - self.offset
+            dist = abs(i - self.index)
 
             item.sprite.center_x = x
             item.sprite.center_y = SCREEN_HEIGHT // 2 + 50 - dist * 10
 
+            item.sprite.scale = max(0.25, 0.5 - dist * 0.05)
+            item.sprite.alpha = max(120, 255 - dist * 40)
+
     def on_draw(self):
         self.clear()
 
-        if self.game_over:
-            self.draw_summary()
+        if self.end:
+            arcade.draw_lbwh_rectangle_filled(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, (30, 30, 30))
+
+            arcade.draw_text("SUMMARY", 350, 520, arcade.color.WHITE, 30)
+            arcade.draw_text(f"Score: {self.score}", 350, 450, arcade.color.GREEN, 20)
+
+            eco = sum(1 for i in self.inventory if i.eco)
+            fast = len(self.inventory) - eco
+
+            arcade.draw_text(f"Eco items: {eco}", 350, 400, arcade.color.GREEN, 16)
+            arcade.draw_text(f"Fast fashion: {fast}", 350, 370, arcade.color.RED, 16)
+
+            arcade.draw_text("CLICK TO RESTART", 320, 250, arcade.color.WHITE, 20)
             return
 
-        # Background
         arcade.draw_lbwh_rectangle_filled(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, (245, 240, 230))
         arcade.draw_lbwh_rectangle_filled(0, 0, SCREEN_WIDTH, 200, (220, 210, 190))
 
-        # Rack bar
         arcade.draw_line(100, SCREEN_HEIGHT // 2 + 120, 800, SCREEN_HEIGHT // 2 + 120, (120, 80, 40), 6)
 
-        # Clothes
-        self.sprite_list.draw()
+        self.sprites.draw()
 
-        # Item info
         if self.rack:
-            item = self.rack[self.current_index]
+            item = self.rack[self.index]
 
+            arcade.draw_text(item.fabric, 400, 150, arcade.color.BLACK, 16)
             arcade.draw_text(
-                f"{item.fabric}",
-                SCREEN_WIDTH // 2 - 50,
-                150,
-                arcade.color.BLACK,
-                16
-            )
-
-            eco_text = "ECO 🌱" if item.eco else "FAST FASHION ❌"
-
-            arcade.draw_text(
-                eco_text,
-                SCREEN_WIDTH // 2 - 60,
-                120,
+                "ECO 🌱" if item.eco else "FAST ❌",
+                400, 120,
                 arcade.color.GREEN if item.eco else arcade.color.RED,
                 14
             )
 
-        # UI panel
         arcade.draw_lbwh_rectangle_filled(20, 20, 340, 90, (255, 255, 255))
-
-        arcade.draw_text(f"Money: ${self.money}", 40, 70, arcade.color.BLACK, 16)
+        arcade.draw_text(f"Money: {self.money}", 40, 70, arcade.color.BLACK, 16)
         arcade.draw_text(f"Score: {self.score}", 40, 45, arcade.color.BLACK, 16)
 
-        # END BUTTON
         arcade.draw_lbwh_rectangle_filled(720, 30, 160, 50, (200, 200, 200))
-        arcade.draw_text("END THRIFTING", 735, 50, arcade.color.BLACK, 12)
+        arcade.draw_text("END", 780, 50, arcade.color.BLACK, 14)
 
-        arcade.draw_text(self.message, 380, 60, arcade.color.RED, 16)
+        arcade.draw_text(self.msg, 400, 60, arcade.color.RED, 16)
 
-    def draw_summary(self):
-        arcade.draw_lbwh_rectangle_filled(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, (30, 30, 30))
-
-        arcade.draw_text("THRIFT SUMMARY", 300, 520, arcade.color.WHITE, 30)
-        arcade.draw_text(f"Final Score: {self.score}", 320, 450, arcade.color.GREEN, 20)
-
-        eco = sum(1 for i in self.inventory if i.eco)
-        fast = len(self.inventory) - eco
-
-        arcade.draw_text(f"Eco Items: {eco}", 320, 400, arcade.color.GREEN, 16)
-        arcade.draw_text(f"Fast Fashion: {fast}", 320, 370, arcade.color.RED, 16)
-
-        arcade.draw_text("CLICK TO RESTART", 320, 250, arcade.color.WHITE, 20)
-
-    def on_update(self, delta_time):
-        speed = 8
-        self.current_offset += (self.target_offset - self.current_offset) / speed
-        self.update_positions()
+    def on_update(self, dt):
+        self.offset += (self.target - self.offset) * 0.1
+        self.update()
 
     def on_key_press(self, key, modifiers):
-        if self.game_over:
+        if self.end:
             self.setup()
             return
 
@@ -179,58 +147,61 @@ class ThriftGame(arcade.Window):
             return
 
         if key == arcade.key.RIGHT:
-            self.current_index = (self.current_index + 1) % len(self.rack)
-            self.target_offset = self.current_index * SPACING
+            self.index = (self.index + 1) % len(self.rack)
+            self.target = self.index * SPACING
 
         elif key == arcade.key.LEFT:
-            self.current_index = (self.current_index - 1) % len(self.rack)
-            self.target_offset = self.current_index * SPACING
+            self.index = (self.index - 1) % len(self.rack)
+            self.target = self.index * SPACING
 
     def on_mouse_press(self, x, y, button, modifiers):
-        if self.game_over:
+        if self.end:
             self.setup()
             return
 
-        # END BUTTON
+        # END BUTTON FIRST (important fix)
         if 720 <= x <= 880 and 30 <= y <= 80:
-            self.game_over = True
+            self.end = True
             return
 
         if not self.rack:
             return
 
-        item = self.rack[self.current_index]
+        # SAFE INDEX CHECK (fixes “can’t buy” bug)
+        if self.index >= len(self.rack):
+            self.index = 0
+
+        item = self.rack[self.index]
 
         if item.price > self.money:
-            self.message = "Not enough money!"
+            self.msg = "Not enough money!"
             return
 
         self.money -= item.price
 
-        # scoring system
         if item.eco:
-            profit = (item.value - item.price) * 2
+            gain = (item.value - item.price) * 2
         else:
-            profit = -(item.price + 10)
+            gain = -(item.price + 10)
 
-        self.score += profit
+        self.score += gain
         self.inventory.append(item)
 
-        self.sprite_list.remove(item.sprite)
-        self.rack.pop(self.current_index)
+        self.sprites.remove(item.sprite)
+        self.rack.pop(self.index)
 
-        new_item = ThriftItem()
+        if self.rack:
+            self.index %= len(self.rack)
+
+        new_item = Item()
         self.rack.append(new_item)
-        self.sprite_list.append(new_item.sprite)
+        self.sprites.append(new_item.sprite)
 
-        if self.current_index >= len(self.rack):
-            self.current_index = 0
-
-        self.target_offset = self.current_index * SPACING
+        self.target = self.index * SPACING
 
 
 def main():
-    game = ThriftGame()
+    game = Game()
     game.setup()
     arcade.run()
 
