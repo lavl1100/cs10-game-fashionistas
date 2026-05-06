@@ -1,31 +1,28 @@
 import arcade
 import random
 
-# --- Screen Settings ---
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Thrift Shop Minigame (Sprites Fixed)"
+SCREEN_TITLE = "Thrift Rack Minigame"
 
-ITEM_COUNT = 5
-GAME_TIME = 30.0
+STARTING_MONEY = 100
 
 
-# --- Thrift Item ---
 class ThriftItem:
-    def __init__(self, x, y):
+    def __init__(self):
         textures = [
             "assets/shirt.png",
-            "assets/pants.png",
-            "assets/dress.png"
+            "assets/dress.png",
+            "assets/pants.png"
         ]
 
         texture_path = random.choice(textures)
 
-        self.sprite = arcade.Sprite(texture_path, scale=0.3)
-        self.sprite.center_x = x
-        self.sprite.center_y = y
+        self.sprite = arcade.Sprite(texture_path, scale=0.5)
+        self.sprite.center_x = SCREEN_WIDTH // 2
+        self.sprite.center_y = SCREEN_HEIGHT // 2 + 50
 
-        self.price = random.randint(5, 25)
+        self.price = random.randint(5, 30)
         self.value = random.randint(0, 60)
 
         # Rarity tint
@@ -36,110 +33,101 @@ class ThriftItem:
         else:
             self.sprite.color = arcade.color.WHITE
 
-    def is_clicked(self, x, y):
-        return self.sprite.collides_with_point((x, y))
 
-
-# --- Game Window ---
 class ThriftGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
         arcade.set_background_color(arcade.color.BEIGE)
 
-        self.items = []
-        self.sprite_list = arcade.SpriteList()
+        self.rack = []
+        self.current_index = 0
 
+        self.money = STARTING_MONEY
         self.score = 0
-        self.time_left = GAME_TIME
-        self.game_over = False
+
+        self.message = ""
 
     def setup(self):
-        self.items.clear()
-        self.sprite_list = arcade.SpriteList()
+        self.rack.clear()
+        self.current_index = 0
 
+        self.money = STARTING_MONEY
         self.score = 0
-        self.time_left = GAME_TIME
-        self.game_over = False
+        self.message = ""
 
-        for _ in range(ITEM_COUNT):
-            self.spawn_item()
+        # Fill rack with items
+        for _ in range(10):
+            self.rack.append(ThriftItem())
 
-    def spawn_item(self):
-        x = random.randint(100, SCREEN_WIDTH - 100)
-        y = random.randint(150, SCREEN_HEIGHT - 100)
-
-        item = ThriftItem(x, y)
-        self.items.append(item)
-        self.sprite_list.append(item.sprite)
+    def get_current_item(self):
+        if self.rack:
+            return self.rack[self.current_index]
+        return None
 
     def on_draw(self):
         self.clear()
 
-        # Draw all sprites (modern Arcade way)
-        self.sprite_list.draw()
+        item = self.get_current_item()
 
-        # Draw prices
-        for item in self.items:
+        if item:
+            item.sprite.draw()
+
+            # Price
             arcade.draw_text(
-                f"${item.price}",
-                item.sprite.center_x - 20,
-                item.sprite.center_y - 50,
+                f"Price: ${item.price}",
+                SCREEN_WIDTH // 2 - 60,
+                150,
                 arcade.color.BLACK,
-                12
+                16
             )
 
         # UI
-        arcade.draw_text(f"Score: {self.score}", 10, 10, arcade.color.BLACK, 16)
-        arcade.draw_text(f"Time: {int(self.time_left)}", 680, 10, arcade.color.BLACK, 16)
+        arcade.draw_text(f"Money: ${self.money}", 20, 20, arcade.color.BLACK, 16)
+        arcade.draw_text(f"Profit: {self.score}", 20, 50, arcade.color.BLACK, 16)
 
-        # Game over screen
-        if self.game_over:
-            arcade.draw_text(
-                "GAME OVER",
-                SCREEN_WIDTH / 2 - 100,
-                SCREEN_HEIGHT / 2 + 20,
-                arcade.color.RED,
-                30
-            )
-            arcade.draw_text(
-                "Click to Restart",
-                SCREEN_WIDTH / 2 - 110,
-                SCREEN_HEIGHT / 2 - 20,
-                arcade.color.BLACK,
-                18
-            )
+        arcade.draw_text("← → to browse | SPACE to buy", 200, 20, arcade.color.DARK_GRAY, 14)
 
-    def on_update(self, delta_time):
-        if self.game_over:
+        # Message feedback
+        arcade.draw_text(self.message, 200, 80, arcade.color.RED, 16)
+
+    def on_key_press(self, key, modifiers):
+        if not self.rack:
             return
 
-        self.time_left -= delta_time
+        # Browse rack
+        if key == arcade.key.RIGHT:
+            self.current_index = (self.current_index + 1) % len(self.rack)
 
-        if self.time_left <= 0:
-            self.game_over = True
+        elif key == arcade.key.LEFT:
+            self.current_index = (self.current_index - 1) % len(self.rack)
 
-        # Keep items stocked
-        while len(self.items) < ITEM_COUNT:
-            self.spawn_item()
+        # Buy item
+        elif key == arcade.key.SPACE:
+            item = self.get_current_item()
 
-    def on_mouse_press(self, x, y, button, modifiers):
-        if self.game_over:
-            self.setup()
-            return
+            if item.price > self.money:
+                self.message = "Not enough money!"
+                return
 
-        for item in self.items:
-            if item.is_clicked(x, y):
-                profit = item.value - item.price
-                self.score += profit
+            # Purchase
+            self.money -= item.price
+            profit = item.value - item.price
+            self.score += profit
 
-                # Remove from both lists
-                self.sprite_list.remove(item.sprite)
-                self.items.remove(item)
-                break
+            self.message = f"Bought! Profit: {profit}"
+
+            # Remove item
+            self.rack.pop(self.current_index)
+
+            # Fix index
+            if self.current_index >= len(self.rack):
+                self.current_index = 0
+
+            # Add new item to end (like new clothes on rack)
+            self.rack.append(ThriftItem())
 
 
-# --- Main ---
 def main():
     game = ThriftGame()
     game.setup()
