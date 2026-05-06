@@ -1,13 +1,13 @@
 import arcade
 import random
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Thrift Rack (Animated)"
+SCREEN_WIDTH = 900
+SCREEN_HEIGHT = 650
+SCREEN_TITLE = "Thrift Store Rack"
 
 STARTING_MONEY = 100
-RACK_SIZE = 10
-SPACING = 140  # distance between clothes
+RACK_SIZE = 12
+SPACING = 120
 
 
 class ThriftItem:
@@ -25,20 +25,20 @@ class ThriftItem:
         self.price = random.randint(5, 30)
         self.value = random.randint(0, 60)
 
-        # Rarity tint
+        # Subtle rarity tint (less harsh)
         if self.value > 45:
-            self.sprite.color = arcade.color.GOLD
+            self.sprite.color = (255, 220, 120)
         elif self.value > 25:
-            self.sprite.color = arcade.color.LIGHT_GRAY
+            self.sprite.color = (220, 220, 220)
         else:
-            self.sprite.color = arcade.color.WHITE
+            self.sprite.color = (255, 255, 255)
 
 
 class ThriftGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
-        arcade.set_background_color(arcade.color.BEIGE)
+        arcade.set_background_color((245, 240, 230))  # warm store color
 
         self.rack = []
         self.sprite_list = arcade.SpriteList()
@@ -74,30 +74,69 @@ class ThriftGame(arcade.Window):
         center_x = SCREEN_WIDTH // 2
 
         for i, item in enumerate(self.rack):
-            x = center_x + (i * SPACING) - self.current_offset
-            item.sprite.center_x = x
-            item.sprite.center_y = SCREEN_HEIGHT // 2 + 50
+            offset = (i * SPACING) - self.current_offset
+            x = center_x + offset
 
-            # Scale center item bigger
-            if i == self.current_index:
-                item.sprite.scale = 0.5
-            else:
-                item.sprite.scale = 0.35
+            # Distance from center
+            dist = abs(i - self.current_index)
+
+            # Depth effect
+            scale = max(0.25, 0.5 - dist * 0.05)
+            alpha = max(120, 255 - dist * 40)
+
+            item.sprite.scale = scale
+            item.sprite.alpha = alpha
+
+            # Slight vertical curve (like rack arc)
+            y = SCREEN_HEIGHT // 2 + 50 - dist * 10
+
+            item.sprite.center_x = x
+            item.sprite.center_y = y
 
     def on_draw(self):
         self.clear()
 
-        # Draw rack bar
-        arcade.draw_line(100, SCREEN_HEIGHT // 2 + 120,
-                         700, SCREEN_HEIGHT // 2 + 120,
-                         arcade.color.DARK_BROWN, 4)
+        # --- BACKGROUND WALL ---
+        arcade.draw_rectangle_filled(
+            SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
+            SCREEN_WIDTH, SCREEN_HEIGHT,
+            (245, 240, 230)
+        )
 
-        # Draw all clothes
+        # --- FLOOR ---
+        arcade.draw_rectangle_filled(
+            SCREEN_WIDTH // 2, 100,
+            SCREEN_WIDTH, 200,
+            (220, 210, 190)
+        )
+
+        # --- RACK BAR ---
+        rack_y = SCREEN_HEIGHT // 2 + 120
+        arcade.draw_line(100, rack_y, 800, rack_y, (120, 80, 40), 6)
+
+        # --- HANGERS (little lines above clothes) ---
+        for item in self.rack:
+            arcade.draw_line(
+                item.sprite.center_x,
+                rack_y,
+                item.sprite.center_x,
+                item.sprite.center_y + 30,
+                arcade.color.DARK_GRAY,
+                2
+            )
+
+        # --- CLOTHES ---
         self.sprite_list.draw()
 
-        # Draw price for center item
+        # --- CENTER ITEM INFO PANEL ---
         if self.rack:
             item = self.rack[self.current_index]
+
+            arcade.draw_rectangle_filled(
+                SCREEN_WIDTH // 2, 140,
+                260, 90,
+                (255, 255, 255)
+            )
 
             arcade.draw_text(
                 f"Price: ${item.price}",
@@ -107,38 +146,39 @@ class ThriftGame(arcade.Window):
                 16
             )
 
-        # UI
-        arcade.draw_text(f"Money: ${self.money}", 20, 20, arcade.color.BLACK, 16)
-        arcade.draw_text(f"Profit: {self.score}", 20, 50, arcade.color.BLACK, 16)
+        # --- UI PANEL ---
+        arcade.draw_rectangle_filled(150, 50, 260, 80, (255, 255, 255))
 
-        arcade.draw_text("← → to browse | SPACE to buy", 200, 20, arcade.color.DARK_GRAY, 14)
+        arcade.draw_text(f"Money: ${self.money}", 40, 60, arcade.color.BLACK, 16)
+        arcade.draw_text(f"Profit: {self.score}", 40, 30, arcade.color.BLACK, 16)
 
-        arcade.draw_text(self.message, 200, 80, arcade.color.RED, 16)
+        arcade.draw_text(
+            "← → browse   SPACE buy",
+            300, 30,
+            arcade.color.DARK_GRAY,
+            14
+        )
+
+        arcade.draw_text(self.message, 300, 60, arcade.color.RED, 16)
 
     def on_update(self, delta_time):
-        # Smooth scrolling animation
-        speed = 10
-
-        if abs(self.current_offset - self.target_offset) > 1:
-            self.current_offset += (self.target_offset - self.current_offset) / speed
-
+        # Smooth animation
+        speed = 8
+        self.current_offset += (self.target_offset - self.current_offset) / speed
         self.update_positions()
 
     def on_key_press(self, key, modifiers):
         if not self.rack:
             return
 
-        # Move right
         if key == arcade.key.RIGHT:
             self.current_index = (self.current_index + 1) % len(self.rack)
             self.target_offset = self.current_index * SPACING
 
-        # Move left
         elif key == arcade.key.LEFT:
             self.current_index = (self.current_index - 1) % len(self.rack)
             self.target_offset = self.current_index * SPACING
 
-        # Buy item
         elif key == arcade.key.SPACE:
             item = self.rack[self.current_index]
 
@@ -146,7 +186,6 @@ class ThriftGame(arcade.Window):
                 self.message = "Not enough money!"
                 return
 
-            # Purchase
             self.money -= item.price
             profit = item.value - item.price
             self.score += profit
@@ -157,12 +196,11 @@ class ThriftGame(arcade.Window):
             self.sprite_list.remove(item.sprite)
             self.rack.pop(self.current_index)
 
-            # Add new item at end
+            # Add new item
             new_item = ThriftItem()
             self.rack.append(new_item)
             self.sprite_list.append(new_item.sprite)
 
-            # Fix index
             if self.current_index >= len(self.rack):
                 self.current_index = 0
 
