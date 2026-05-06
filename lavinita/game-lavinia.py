@@ -1,34 +1,34 @@
 import arcade
 import random
 
-# Screen settings
+# --- Screen Settings ---
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Thrift Shop Minigame (Sprites)"
+SCREEN_TITLE = "Thrift Shop Minigame (Sprites Fixed)"
 
 ITEM_COUNT = 5
 GAME_TIME = 30.0
 
 
+# --- Thrift Item ---
 class ThriftItem:
     def __init__(self, x, y):
-        # Load random sprite
         textures = [
             "assets/shirt.png",
-            "assets/dress.png",
-            "assets/pants.png"
+            "assets/jacket.png",
+            "assets/shoes.png"
         ]
+
         texture_path = random.choice(textures)
 
         self.sprite = arcade.Sprite(texture_path, scale=0.3)
         self.sprite.center_x = x
         self.sprite.center_y = y
 
-        # Gameplay values
         self.price = random.randint(5, 25)
         self.value = random.randint(0, 60)
 
-        # Rarity color tint
+        # Rarity tint
         if self.value > 45:
             self.sprite.color = arcade.color.GOLD
         elif self.value > 25:
@@ -36,34 +36,28 @@ class ThriftItem:
         else:
             self.sprite.color = arcade.color.WHITE
 
-    def draw(self):
-        self.sprite.draw()
-
-        # Draw price under item
-        arcade.draw_text(
-            f"${self.price}",
-            self.sprite.center_x - 20,
-            self.sprite.center_y - 50,
-            arcade.color.BLACK,
-            12
-        )
-
     def is_clicked(self, x, y):
         return self.sprite.collides_with_point((x, y))
 
 
+# --- Game Window ---
 class ThriftGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+
         arcade.set_background_color(arcade.color.BEIGE)
 
         self.items = []
+        self.sprite_list = arcade.SpriteList()
+
         self.score = 0
         self.time_left = GAME_TIME
         self.game_over = False
 
     def setup(self):
         self.items.clear()
+        self.sprite_list = arcade.SpriteList()
+
         self.score = 0
         self.time_left = GAME_TIME
         self.game_over = False
@@ -74,19 +68,32 @@ class ThriftGame(arcade.Window):
     def spawn_item(self):
         x = random.randint(100, SCREEN_WIDTH - 100)
         y = random.randint(150, SCREEN_HEIGHT - 100)
-        self.items.append(ThriftItem(x, y))
+
+        item = ThriftItem(x, y)
+        self.items.append(item)
+        self.sprite_list.append(item.sprite)
 
     def on_draw(self):
         self.clear()
 
-        # Draw items
+        # Draw all sprites (modern Arcade way)
+        self.sprite_list.draw()
+
+        # Draw prices
         for item in self.items:
-            item.draw()
+            arcade.draw_text(
+                f"${item.price}",
+                item.sprite.center_x - 20,
+                item.sprite.center_y - 50,
+                arcade.color.BLACK,
+                12
+            )
 
         # UI
         arcade.draw_text(f"Score: {self.score}", 10, 10, arcade.color.BLACK, 16)
         arcade.draw_text(f"Time: {int(self.time_left)}", 680, 10, arcade.color.BLACK, 16)
 
+        # Game over screen
         if self.game_over:
             arcade.draw_text(
                 "GAME OVER",
@@ -125,10 +132,14 @@ class ThriftGame(arcade.Window):
             if item.is_clicked(x, y):
                 profit = item.value - item.price
                 self.score += profit
+
+                # Remove from both lists
+                self.sprite_list.remove(item.sprite)
                 self.items.remove(item)
                 break
 
 
+# --- Main ---
 def main():
     game = ThriftGame()
     game.setup()
