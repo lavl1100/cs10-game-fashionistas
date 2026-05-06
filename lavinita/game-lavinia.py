@@ -3,7 +3,7 @@ import random
 
 SCREEN_WIDTH = 900
 SCREEN_HEIGHT = 650
-SCREEN_TITLE = "Thrift Store Rack"
+SCREEN_TITLE = "Thrift Store Rack (Polished)"
 
 STARTING_MONEY = 100
 RACK_SIZE = 12
@@ -18,16 +18,14 @@ class ThriftItem:
             "assets/pants.png"
         ]
 
-        texture_path = random.choice(textures)
-
-        self.sprite = arcade.Sprite(texture_path, scale=0.4)
+        self.sprite = arcade.Sprite(random.choice(textures), scale=0.4)
 
         self.price = random.randint(5, 30)
         self.value = random.randint(0, 60)
 
-        # Subtle rarity tint (less harsh)
+        # Soft rarity coloring
         if self.value > 45:
-            self.sprite.color = (255, 220, 120)
+            self.sprite.color = (255, 220, 140)
         elif self.value > 25:
             self.sprite.color = (220, 220, 220)
         else:
@@ -38,7 +36,7 @@ class ThriftGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
 
-        arcade.set_background_color((245, 240, 230))  # warm store color
+        arcade.set_background_color((245, 240, 230))
 
         self.rack = []
         self.sprite_list = arcade.SpriteList()
@@ -77,7 +75,6 @@ class ThriftGame(arcade.Window):
             offset = (i * SPACING) - self.current_offset
             x = center_x + offset
 
-            # Distance from center
             dist = abs(i - self.current_index)
 
             # Depth effect
@@ -87,7 +84,6 @@ class ThriftGame(arcade.Window):
             item.sprite.scale = scale
             item.sprite.alpha = alpha
 
-            # Slight vertical curve (like rack arc)
             y = SCREEN_HEIGHT // 2 + 50 - dist * 10
 
             item.sprite.center_x = x
@@ -96,75 +92,85 @@ class ThriftGame(arcade.Window):
     def on_draw(self):
         self.clear()
 
-        # --- BACKGROUND WALL ---
-        arcade.draw_rectangle_filled(
-            SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
+        # --- WALL ---
+        arcade.draw_lrwh_rectangle_filled(
+            0, 0,
             SCREEN_WIDTH, SCREEN_HEIGHT,
             (245, 240, 230)
         )
 
         # --- FLOOR ---
-        arcade.draw_rectangle_filled(
-            SCREEN_WIDTH // 2, 100,
+        arcade.draw_lrwh_rectangle_filled(
+            0, 0,
             SCREEN_WIDTH, 200,
             (220, 210, 190)
         )
 
         # --- RACK BAR ---
-        rack_y = SCREEN_HEIGHT // 2 + 120
-        arcade.draw_line(100, rack_y, 800, rack_y, (120, 80, 40), 6)
-
-        # --- HANGERS (little lines above clothes) ---
-        for item in self.rack:
-            arcade.draw_line(
-                item.sprite.center_x,
-                rack_y,
-                item.sprite.center_x,
-                item.sprite.center_y + 30,
-                arcade.color.DARK_GRAY,
-                2
-            )
+        arcade.draw_line(
+            100, SCREEN_HEIGHT // 2 + 120,
+            800, SCREEN_HEIGHT // 2 + 120,
+            (120, 80, 40), 6
+        )
 
         # --- CLOTHES ---
         self.sprite_list.draw()
 
-        # --- CENTER ITEM INFO PANEL ---
+        # --- CENTER INFO PANEL ---
         if self.rack:
             item = self.rack[self.current_index]
 
-            arcade.draw_rectangle_filled(
-                SCREEN_WIDTH // 2, 140,
-                260, 90,
+            arcade.draw_lrwh_rectangle_filled(
+                SCREEN_WIDTH // 2 - 130,
+                120,
+                260,
+                80,
                 (255, 255, 255)
             )
 
             arcade.draw_text(
                 f"Price: ${item.price}",
-                SCREEN_WIDTH // 2 - 60,
+                SCREEN_WIDTH // 2 - 50,
                 150,
                 arcade.color.BLACK,
                 16
             )
 
         # --- UI PANEL ---
-        arcade.draw_rectangle_filled(150, 50, 260, 80, (255, 255, 255))
+        arcade.draw_lrwh_rectangle_filled(
+            20, 20,
+            280, 80,
+            (255, 255, 255)
+        )
 
-        arcade.draw_text(f"Money: ${self.money}", 40, 60, arcade.color.BLACK, 16)
-        arcade.draw_text(f"Profit: {self.score}", 40, 30, arcade.color.BLACK, 16)
+        arcade.draw_text(
+            f"Money: ${self.money}",
+            40, 60,
+            arcade.color.BLACK,
+            16
+        )
+
+        arcade.draw_text(
+            f"Profit: {self.score}",
+            40, 30,
+            arcade.color.BLACK,
+            16
+        )
 
         arcade.draw_text(
             "← → browse   SPACE buy",
-            300, 30,
+            320, 30,
             arcade.color.DARK_GRAY,
             14
         )
 
-        arcade.draw_text(self.message, 300, 60, arcade.color.RED, 16)
+        arcade.draw_text(self.message, 320, 60, arcade.color.RED, 16)
 
     def on_update(self, delta_time):
-        # Smooth animation
+        # smooth scrolling animation
         speed = 8
         self.current_offset += (self.target_offset - self.current_offset) / speed
+
         self.update_positions()
 
     def on_key_press(self, key, modifiers):
@@ -192,11 +198,11 @@ class ThriftGame(arcade.Window):
 
             self.message = f"Profit: {profit}"
 
-            # Remove item
+            # remove item
             self.sprite_list.remove(item.sprite)
             self.rack.pop(self.current_index)
 
-            # Add new item
+            # add new item
             new_item = ThriftItem()
             self.rack.append(new_item)
             self.sprite_list.append(new_item.sprite)
