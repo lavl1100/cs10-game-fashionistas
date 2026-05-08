@@ -1,367 +1,584 @@
 """
-CLOUT.EXE — A Social Media Platform Simulator
-Built with Python + Arcade 3.x
+SocialSim — Grow Your Platform
+A social media simulation game built with Python + Arcade.
+
+Install:  pip install arcade
+Run:      python social_sim.py
+
+Controls:
+  Space       — Open compose menu
+  1-5         — Quick-pick post type while compose menu is open
+  ESC         — Close compose menu
+  Scroll      — Scroll the feed
+  Click       — Compose button in sidebar / post type buttons
 """
 
-import arcade
-import arcade.gui
-import random
 import math
-import time
+import random
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 from enum import Enum
 
-SCREEN_W, SCREEN_H = 1000, 700
-TITLE = "CLOUT.EXE"
-BG = (10, 10, 18)
+import arcade
 
-C_ACCENT  = (80, 240, 160)
-C_PINK    = (255, 80, 160)
-C_YELLOW  = (255, 220, 60)
-C_BLUE    = (60, 180, 255)
-C_RED     = (255, 80, 80)
-C_DARK    = (20, 20, 32)
-C_MID     = (35, 35, 55)
-C_LIGHT   = (160, 160, 200)
-C_WHITE   = (230, 230, 240)
-C_PURPLE  = (160, 80, 255)
+# ── Window ────────────────────────────────────────────────────────────────────
+W, H  = 1100, 720
+TITLE = "SocialSim — Grow Your Platform"
 
-# ── Arcade 3.x rectangle helpers (old API used cx,cy,w,h; new uses LBWH) ────
-def _lbwh(cx, cy, w, h):
-    return arcade.LBWH(cx - w / 2, cy - h / 2, w, h)
+SB_W = 280          # sidebar width
+FX   = SB_W + 10    # feed area left edge
+FW   = W - SB_W - 20  # feed area width
 
-def draw_rect_filled(cx, cy, w, h, color):
-    arcade.draw_rect_filled(_lbwh(cx, cy, w, h), color)
+# ── Palette ───────────────────────────────────────────────────────────────────
+BG       = (12,  12,  22)
+PANEL    = (20,  22,  38)
+CARD     = (28,  30,  50)
+CARD_VIR = (50,  30,   8)
+BLUE     = (70, 150, 255)
+GREEN    = (70, 210, 100)
+RED      = (255, 85,  85)
+GOLD     = (255, 195, 55)
+PURPLE   = (175, 85, 255)
+ORANGE   = (255, 145, 30)
+WHITE    = (235, 235, 245)
+GRAY     = (140, 140, 165)
+DGRAY    = (55,  55,  80)
+BLACK    = (0,   0,   0)
 
-def draw_rect_outline(cx, cy, w, h, color, border=1):
-    arcade.draw_rect_outline(_lbwh(cx, cy, w, h), color, border)
 
-# ── Post Types ───────────────────────────────────────────────────────────────
-class PostType(Enum):
-    MEME     = "meme"
-    SELFIE   = "selfie"
-    HOT_TAKE = "hot take"
-    ESSAY    = "essay"
-    VIDEO    = "video"
-    THIRST   = "thirst trap"
-    RANT     = "unhinged rant"
+# ── Colour helpers ────────────────────────────────────────────────────────────
 
-POST_CONFIG = {
-    PostType.MEME:     {"emoji":"😂","viral":0.35,"ratio_risk":0.05,"unlock":0,    "color":C_YELLOW},
-    PostType.SELFIE:   {"emoji":"🤳","viral":0.20,"ratio_risk":0.03,"unlock":0,    "color":C_PINK},
-    PostType.HOT_TAKE: {"emoji":"🔥","viral":0.40,"ratio_risk":0.30,"unlock":100,  "color":C_RED},
-    PostType.ESSAY:    {"emoji":"📝","viral":0.15,"ratio_risk":0.02,"unlock":200,  "color":C_BLUE},
-    PostType.VIDEO:    {"emoji":"🎬","viral":0.50,"ratio_risk":0.10,"unlock":500,  "color":C_PURPLE},
-    PostType.THIRST:   {"emoji":"💅","viral":0.60,"ratio_risk":0.20,"unlock":1000, "color":C_PINK},
-    PostType.RANT:     {"emoji":"😤","viral":0.55,"ratio_risk":0.50,"unlock":2000, "color":C_RED},
+def lerp_c(a, b, t):
+    """Linearly interpolate between two RGB tuples."""
+    t = max(0.0, min(1.0, t))
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+# ── Drawing helpers (bottom-left origin) ──────────────────────────────────────
+
+def rect(x, y, w, h, color):
+    arcade.draw_lbwh_rectangle_filled(x, y, w, h, color)
+
+
+def rect_out(x, y, w, h, color, lw=1):
+    arcade.draw_lbwh_rectangle_outline(x, y, w, h, color, lw)
+
+
+def txt(text, x, y, color, size=13, bold=False, ax="left", ay="top"):
+    arcade.draw_text(str(text), x, y, color, size, bold=bold,
+                     anchor_x=ax, anchor_y=ay)
+
+
+# ── Post Types ────────────────────────────────────────────────────────────────
+
+class PT(Enum):
+    """Post type enum — each value packs all stats."""
+    # name         label       icon  color   viral  growth  max_age  desc
+    MEME     = ("Meme",     "MEM", PURPLE, 0.30,  0.18,   90,   "Funny & shareable — high viral shot, short shelf life")
+    VIDEO    = ("Video",    "VID", RED,    0.20,  0.25,  120,   "High effort, great growth if it lands")
+    ARTICLE  = ("Article",  "ART", BLUE,   0.08,  0.12,  150,   "Slow burn — low viral, longest lasting")
+    SELFIE   = ("Selfie",   "SEL", GREEN,  0.12,  0.20,   80,   "Reliable likes, rarely breaks through")
+    HOT_TAKE = ("Hot Take", "HOT", ORANGE, 0.45,  0.08,   60,   "Chaotic — highest viral chance, polarising")
+
+    def __init__(self, label, icon, color, viral_chance, base_growth, max_age, desc):
+        self.label        = label
+        self.icon         = icon
+        self.color        = color
+        self.viral_chance = viral_chance   # prob/s of going viral
+        self.base_growth  = base_growth    # engagement events/s (base)
+        self.max_age      = max_age        # seconds before post expires
+        self.desc         = desc
+
+
+TEMPLATES: dict = {
+    PT.MEME: [
+        "When Monday hits different 💀",
+        "This is fine. 🔥",
+        "POV: you're the main character",
+        "Day {n}: still haven't touched grass",
+        "Nobody:\nMe at 3am: *opens laptop*",
+        "Real ones remember when internet was simple",
+        "I'm not like other accounts (I am)",
+    ],
+    PT.VIDEO: [
+        "I only ate pizza for a week (honest review)",
+        "24 hours in the world's smallest apartment",
+        "Teaching grandma to speedrun Minecraft",
+        "Built a gaming PC completely blindfolded",
+        "Trying every menu item at McDonald's",
+        "Reacting to my oldest cringe videos",
+    ],
+    PT.ARTICLE: [
+        "5 things nobody tells you about freelancing",
+        "Why I quit my 6-figure job (full story)",
+        "The hidden cost of productivity culture",
+        "AI won't replace developers. Here's why.",
+        "Your morning routine is lying to you",
+        "The economics of going viral, explained",
+    ],
+    PT.SELFIE: [
+        "Finally got a haircut ✂️",
+        "Golden hour hit different today 🌅",
+        "New chapter, new vibe ✨",
+        "First day energy 🎉",
+        "Road trip + good vibes only 🚗",
+        "New fit, who dis 👀",
+    ],
+    PT.HOT_TAKE: [
+        "Unpopular opinion: pineapple belongs on pizza",
+        "Hustle culture is a scam. I said it.",
+        "Dogs > cats. Not debatable.",
+        "Open offices completely destroyed productivity",
+        "Mornings are actually terrible. Change my mind.",
+        "Cold brew is just overpriced cold coffee",
+    ],
 }
 
-RANDOM_EVENTS = [
-    {"name":"Algorithm Boost","prob":0.08,"effect":3.0, "color":C_ACCENT,"msg":"🚀 The algorithm loves you!"},
-    {"name":"Shadowban",      "prob":0.05,"effect":0.1, "color":C_RED,   "msg":"👻 You've been shadowbanned..."},
-    {"name":"Celeb Repost",   "prob":0.03,"effect":10.0,"color":C_YELLOW,"msg":"⭐ A celebrity reposted you!"},
-    {"name":"Bot Attack",     "prob":0.06,"effect":0.5, "color":C_PURPLE,"msg":"🤖 Bots are ratio-ing you!"},
-    {"name":"Trend Surfing",  "prob":0.10,"effect":2.0, "color":C_BLUE,  "msg":"📈 You caught a trending wave!"},
-    {"name":"Platform Outage","prob":0.04,"effect":0.0, "color":C_MID,   "msg":"💀 Platform is down. No reach."},
-]
+MILESTONES = [500, 1_000, 5_000, 10_000, 50_000, 100_000]
 
-QUALITY_LABELS = ["bad","mid","decent","good","banger"]
+
+# ── Data classes ──────────────────────────────────────────────────────────────
 
 @dataclass
-class Particle:
-    x:float; y:float; vx:float; vy:float
-    life:float; max_life:float; color:tuple; size:float; text:str=""
+class Post:
+    ptype: PT
+    text: str
+    quality: float          # 0..1, rolled at creation time
+
+    likes: int    = 0
+    shares: int   = 0
+    comments: int = 0
+
+    age: float         = 0.0
+    is_viral: bool     = False
+    viral_mult: float  = 1.0
+    viral_flash: float = 0.0   # countdown for glow animation
+    dead: bool         = False
+
+    @property
+    def engagement(self):
+        return self.likes + self.shares * 3 + self.comments * 2
+
+    @property
+    def follower_rate(self):
+        """Followers accumulated per second while this post is alive."""
+        return self.engagement * self.quality * self.viral_mult * 0.004
+
+    def tick(self, dt: float):
+        self.age += dt
+        if self.age >= self.ptype.max_age:
+            self.dead = True
+            return
+
+        # Engagement decays toward the post's natural death
+        decay     = max(0.05, 1.0 - self.age / self.ptype.max_age)
+        rate      = self.ptype.base_growth * self.quality * decay * self.viral_mult
+
+        # Stochastic engagement tick — heart of the probability system
+        if random.random() < rate * dt:
+            self.likes    += random.randint(1, 15)
+            self.shares   += random.randint(0,  4)
+            self.comments += random.randint(0,  5)
+
+        if self.viral_flash > 0:
+            self.viral_flash = max(0.0, self.viral_flash - dt)
+
 
 @dataclass
-class PostRecord:
-    post_type:PostType; quality:int; likes:int; shares:int
-    followers_gained:int; event:str; timestamp:float
-
-@dataclass
-class FeedItem:
-    y:float; record:PostRecord; alpha:float=255.0; slide_x:float=400.0
+class Notif:
+    text:  str
+    timer: float
+    color: tuple
 
 
-class SocialMediaGame(arcade.Window):
+# ── Main game window ──────────────────────────────────────────────────────────
+
+class SocialSim(arcade.Window):
+
+    CARD_H = 130   # pixels per feed card
+
     def __init__(self):
-        super().__init__(SCREEN_W, SCREEN_H, TITLE, resizable=False)
-        self.background_color = arcade.types.Color(*BG)
-        self.setup()
+        super().__init__(W, H, TITLE)
+        arcade.set_background_color(BG)
 
-    def setup(self):
-        self.followers=0.0; self.total_posts=0; self.total_likes=0
-        self.energy=100.0; self.energy_regen=8.0; self.streak=0
-        self.best_post=None; self.particles=[]; self.feed_items=[]
-        self.notifications=[]; self.active_event=None; self.event_timer=0.0
-        self.selected_quality=2; self.selected_type_idx=0
-        self.available_types=[]; self._refresh_available()
-        self.posting_anim=0.0; self.total_time=0.0
-        self.milestones={
-            10:"10 followers — mom found your account 😬",
-            100:"100 followers — you're basically famous",
-            500:"500 followers — okay this is real",
-            1000:"1K followers 🎉 — four-digit crew",
-            5000:"5K followers — brand deals incoming?",
-            10000:"10K FOLLOWERS — verified check soon??",
-            50000:"50K — you're going to be ok",
-        }
-        self.reached_milestones=set()
+        # ── Game state ────────────────────────────────────────────────────────
+        self.followers:    int   = 100
+        self.day:          int   = 1
+        self.day_timer:    float = 0.0
+        self.day_len:      float = 60.0   # real seconds per in-game day
+        self.energy:       int   = 10
+        self.max_energy:   int   = 10
+        self.posts_made:   int   = 0
+        self.viral_count:  int   = 0
+        self.total_likes:  int   = 0
+        self.milestone_idx: int  = 0
+        self._fol_frac:    float = 0.0    # sub-integer accumulator
 
-    def _refresh_available(self):
-        self.available_types=[pt for pt,cfg in POST_CONFIG.items() if self.followers>=cfg["unlock"]]
+        self.posts:      List[Post]  = []
+        self.notifs:     List[Notif] = []
+        self.post_types: List[PT]    = list(PT)
 
-    def post_content(self):
-        if self.energy<20:
-            self._notify("Not enough energy! Rest a bit 😴",C_RED); return
-        if not self.available_types: return
+        self.scroll:    int  = 0
+        self.composing: bool = False
+        self.hover_idx: int  = -1
 
-        pt=self.available_types[self.selected_type_idx%len(self.available_types)]
-        cfg=POST_CONFIG[pt]; quality=self.selected_quality
-        self.energy=max(0,self.energy-20+quality*2)
+    # ── Follower helpers ──────────────────────────────────────────────────────
 
-        viral_chance=max(0.05,min(0.95,cfg["viral"]+(quality-2)*0.10+min(self.streak*0.03,0.15)))
-        active_event=None
-        for ev in RANDOM_EVENTS:
-            if random.random()<ev["prob"]:
-                active_event=ev; self.active_event=ev; self.event_timer=4.0; break
+    def _gain_followers(self, n: int):
+        self.followers += n
+        while (self.milestone_idx < len(MILESTONES) and
+               self.followers >= MILESTONES[self.milestone_idx]):
+            m     = MILESTONES[self.milestone_idx]
+            label = f"{m // 1_000}K" if m >= 1_000 else str(m)
+            self._notif(f"🎉  {label} followers!  Keep posting!", GOLD)
+            self.milestone_idx += 1
+            self.max_energy = min(20, self.max_energy + 2)
 
-        event_mult=active_event["effect"] if active_event else 1.0
-        went_viral=random.random()<viral_chance
-        got_ratiod=random.random()<cfg["ratio_risk"]+(4-quality)*0.05
+    def _notif(self, text, color=WHITE):
+        self.notifs.append(Notif(text, 3.5, color))
+        if len(self.notifs) > 6:
+            self.notifs.pop(0)
 
-        base_likes=random.randint(1,max(2,int(self.followers*0.15+5)))
-        if went_viral:
-            likes=int(base_likes*random.uniform(5,20)*event_mult*(quality+1))
+    # ── Update ────────────────────────────────────────────────────────────────
+
+    def on_update(self, dt):
+        dt = min(dt, 0.1)
+
+        # ── Day cycle ─────────────────────────────────────────────────────────
+        self.day_timer += dt
+        if self.day_timer >= self.day_len:
+            self.day_timer -= self.day_len
+            self.day       += 1
+            self.energy     = self.max_energy
+            self._notif(f"Day {self.day} begins!  Energy fully restored.", BLUE)
+
+        # ── Tick each active post ─────────────────────────────────────────────
+        total_rate = 0.0
+        for p in self.posts:
+            p.tick(dt)
+            if p.dead:
+                continue
+
+            # Viral roll — each second there is a ptype.viral_chance prob
+            if not p.is_viral and random.random() < p.ptype.viral_chance * dt:
+                p.is_viral    = True
+                p.viral_mult  = random.uniform(3.0, 9.0)
+                p.viral_flash = 2.5
+                self.viral_count += 1
+                self._notif(f"🔥  Your {p.ptype.label} went VIRAL! ({p.viral_mult:.1f}x boost)", ORANGE)
+
+            total_rate += p.follower_rate
+
+        # ── Accumulate followers ──────────────────────────────────────────────
+        self._fol_frac += total_rate * dt
+        if self._fol_frac >= 1.0:
+            gained          = int(self._fol_frac)
+            self._fol_frac -= gained
+            self._gain_followers(gained)
+
+        # Tiny passive decay when completely idle
+        if not self.posts and random.random() < 0.0005:
+            self.followers = max(0, self.followers - 1)
+
+        # ── Cleanup ───────────────────────────────────────────────────────────
+        self.posts  = [p for p in self.posts if not p.dead]
+        self.total_likes = sum(p.likes for p in self.posts)
+
+        for n in self.notifs:
+            n.timer -= dt
+        self.notifs = [n for n in self.notifs if n.timer > 0]
+
+    # ── Post creation ─────────────────────────────────────────────────────────
+
+    def _create_post(self, ptype: PT):
+        if self.energy <= 0:
+            self._notif("No energy left — wait for the next day!", RED)
+            return
+
+        # Quality from a beta distribution.
+        # As your following grows your 'skill' improves, shifting the distribution.
+        skill = min(0.8, math.log10(max(10, self.followers)) / 6.0)
+        alpha = 1.0 + skill * 3.0
+        beta  = max(1.2, 4.0 - skill * 2.0)
+        quality = random.betavariate(alpha, beta)
+        quality = max(0.05, min(1.0, quality))
+
+        template = random.choice(TEMPLATES[ptype])
+        text     = template.replace("{n}", str(self.day))
+
+        post = Post(ptype=ptype, text=text, quality=quality)
+        self.posts.insert(0, post)
+        self.posts    = self.posts[:20]   # cap feed length
+        self.posts_made += 1
+        self.energy     -= 1
+        self.scroll      = 0              # snap to top
+
+        if quality > 0.70:
+            qlabel, qc = "Great!",  GREEN
+        elif quality > 0.40:
+            qlabel, qc = "Decent",  GOLD
         else:
-            likes=int(base_likes*event_mult*((quality+1)/3))
+            qlabel, qc = "Weak",    RED
 
-        if got_ratiod: likes=max(0,int(likes*random.uniform(0.1,0.5))); shares=0
-        else: shares=int(likes*random.uniform(0.1,0.4))
+        self._notif(f"Posted {ptype.icon}  ·  Quality: {qlabel} ({quality:.0%})", qc)
+        self.composing = False
 
-        if got_ratiod: gained=-random.randint(1,max(1,int(self.followers*0.05)+5)); self.streak=0
-        elif went_viral: gained=int(likes*random.uniform(0.2,0.6)); self.streak+=1
-        else:
-            gained=max(0,int(likes*random.uniform(0.05,0.15)))
-            self.streak=self.streak+1 if gained>0 else max(0,self.streak-1)
-
-        if event_mult==0.0: gained=0; likes=0; shares=0
-
-        self.followers=max(0,self.followers+gained)
-        self.total_likes+=likes; self.total_posts+=1
-
-        rec=PostRecord(pt,quality,likes,shares,gained,
-                       active_event["name"] if active_event else "normal",time.time())
-        if self.best_post is None or rec.likes>self.best_post.likes: self.best_post=rec
-
-        fi=FeedItem(y=SCREEN_H-100,record=rec)
-        self.feed_items.insert(0,fi)
-        if len(self.feed_items)>6: self.feed_items.pop()
-
-        self._spawn_post_particles(pt,went_viral,got_ratiod,gained)
-        if got_ratiod: self._notify(f"💀 RATIO'D! -{abs(gained)} followers",C_RED)
-        elif went_viral: self._notify(f"🔥 VIRAL! +{gained:,} followers!",C_ACCENT)
-        else: self._notify(f"+{gained} followers",C_LIGHT)
-        if active_event: self._notify(active_event["msg"],active_event["color"])
-
-        self._refresh_available(); self._check_milestones(); self.posting_anim=1.0
-
-    def _check_milestones(self):
-        for thresh,msg in self.milestones.items():
-            if self.followers>=thresh and thresh not in self.reached_milestones:
-                self.reached_milestones.add(thresh); self._notify(f"🏆 {msg}",C_YELLOW)
-
-    def _spawn_post_particles(self,pt,viral,ratiod,gained):
-        x0,y0=780,360
-        color=C_RED if ratiod else(C_ACCENT if viral else POST_CONFIG[pt]["color"])
-        emojis=["✨","💥","⚡","🔥","💫"] if viral else(["💀","😭","📉"] if ratiod else["👍","❤️","🔁"])
-        for _ in range(30 if viral else 8):
-            angle=random.uniform(0,math.tau); speed=random.uniform(50,250 if viral else 120)
-            life=random.uniform(0.8,2.0)
-            self.particles.append(Particle(
-                x=x0+random.uniform(-20,20),y=y0+random.uniform(-20,20),
-                vx=math.cos(angle)*speed,vy=math.sin(angle)*speed,
-                life=life,max_life=life,color=color,
-                size=random.uniform(3,8 if viral else 5),
-                text=random.choice(emojis) if random.random()<0.3 else ""))
-
-    def _notify(self,msg,color):
-        self.notifications.append({"msg":msg,"color":color,"timer":3.0,"y":SCREEN_H-40})
-        if len(self.notifications)>5: self.notifications.pop(0)
-
-    def on_update(self,dt):
-        self.total_time+=dt; self.energy=min(100,self.energy+self.energy_regen*dt)
-        for p in self.particles[:]:
-            p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy-=200*dt; p.life-=dt
-            if p.life<=0: self.particles.remove(p)
-        for n in self.notifications[:]:
-            n["timer"]-=dt; n["y"]+=20*dt
-            if n["timer"]<=0: self.notifications.remove(n)
-        if self.event_timer>0:
-            self.event_timer-=dt
-            if self.event_timer<=0: self.active_event=None
-        for fi in self.feed_items:
-            fi.slide_x=max(0,fi.slide_x-600*dt)
-            if fi.slide_x==0:
-                target_y=SCREEN_H-100-self.feed_items.index(fi)*75
-                fi.y+=(target_y-fi.y)*5*dt
-        if self.posting_anim>0: self.posting_anim=max(0,self.posting_anim-3*dt)
+    # ── Drawing ───────────────────────────────────────────────────────────────
 
     def on_draw(self):
         self.clear()
-        self._draw_bg(); self._draw_left_panel(); self._draw_right_panel()
-        self._draw_feed(); self._draw_particles(); self._draw_notifications()
-        if self.active_event: self._draw_event_banner()
+        self._draw_sidebar()
+        self._draw_feed()
+        self._draw_notifs()
+        if self.composing:
+            self._draw_compose()
 
-    def _draw_bg(self):
-        for x in range(0,SCREEN_W,60): arcade.draw_line(x,0,x,SCREEN_H,(20,20,35),1)
-        for y in range(0,SCREEN_H,60): arcade.draw_line(0,y,SCREEN_W,y,(20,20,35),1)
-        if self.posting_anim>0:
-            draw_rect_filled(SCREEN_W//2,SCREEN_H//2,SCREEN_W,SCREEN_H,(*C_ACCENT,int(self.posting_anim*40)))
+    # ── Sidebar ───────────────────────────────────────────────────────────────
 
-    def _draw_left_panel(self):
-        draw_rect_filled(200,SCREEN_H//2,380,SCREEN_H,(*C_DARK,220))
-        arcade.draw_line(390,0,390,SCREEN_H,(*C_ACCENT,60),1)
-        arcade.draw_text("CLOUT.EXE",20,SCREEN_H-40,C_ACCENT,28,bold=True,font_name="Courier New")
-        arcade.draw_text("social media simulator",20,SCREEN_H-62,(*C_LIGHT,150),11,font_name="Courier New")
-        arcade.draw_line(20,SCREEN_H-72,370,SCREEN_H-72,(*C_ACCENT,50),1)
+    def _draw_sidebar(self):
+        rect(0, 0, SB_W, H, PANEL)
+        arcade.draw_line(SB_W, 0, SB_W, H, DGRAY, 1)
 
-        y=SCREEN_H-100
-        self._draw_stat("FOLLOWERS",f"{int(self.followers):,}",y,C_ACCENT)
-        self._draw_stat("TOTAL POSTS",str(self.total_posts),y-35,C_BLUE)
-        self._draw_stat("TOTAL LIKES",f"{self.total_likes:,}",y-70,C_PINK)
-        self._draw_stat("STREAK",f"{self.streak}🔥",y-105,C_YELLOW)
+        y = H - 18
 
-        ey=y-150
-        arcade.draw_text("ENERGY",20,ey,C_LIGHT,10,font_name="Courier New")
-        draw_rect_filled(195,ey+6,350,14,C_MID)
-        bar_w=int(350*self.energy/100)
-        ec=C_ACCENT if self.energy>50 else(C_YELLOW if self.energy>20 else C_RED)
-        if bar_w>0: draw_rect_filled(20+bar_w//2,ey+6,bar_w,12,ec)
-        arcade.draw_text(f"{int(self.energy)}%",330,ey,C_LIGHT,10,font_name="Courier New")
+        txt("SocialSim", 14, y, BLUE, 20, bold=True)
+        y -= 36
+        arcade.draw_line(10, y, SB_W - 10, y, DGRAY, 1)
+        y -= 28
 
-        ty=ey-50
-        arcade.draw_text("SELECT POST TYPE:",20,ty,C_LIGHT,10,font_name="Courier New")
-        self._refresh_available()
-        for i,pt in enumerate(self.available_types):
-            cfg=POST_CONFIG[pt]; sel=(i==self.selected_type_idx%len(self.available_types))
-            bx,by=20+(i%3)*120,ty-30-(i//3)*45
-            col=cfg["color"] if sel else C_MID
-            draw_rect_filled(bx+55,by+15,108,36,(*col,180 if sel else 60))
-            if sel: draw_rect_outline(bx+55,by+15,108,36,col,2)
-            arcade.draw_text(f"{cfg['emoji']} {pt.value}",bx+5,by+5,C_WHITE if sel else C_LIGHT,9,font_name="Courier New")
+        # Followers counter
+        f    = self.followers
+        fstr = (f"{f / 1_000_000:.1f}M" if f >= 1_000_000
+                else f"{f / 1_000:.1f}K" if f >= 1_000
+                else str(f))
+        txt("FOLLOWERS", 14, y, GRAY, 10)
+        y -= 20
+        txt(fstr, 14, y, WHITE, 32, bold=True)
+        y -= 46
 
-        qt_y=ty-30-((len(self.available_types)-1)//3+1)*45-20
-        arcade.draw_text("POST QUALITY:",20,qt_y,C_LIGHT,10,font_name="Courier New")
-        for i,label in enumerate(QUALITY_LABELS):
-            bx=20+i*68; sel=(i==self.selected_quality)
-            col=[C_RED,C_RED,C_YELLOW,C_ACCENT,C_PURPLE][i]
-            draw_rect_filled(bx+30,qt_y-20,60,28,(*col,180 if sel else 50))
-            if sel: draw_rect_outline(bx+30,qt_y-20,60,28,col,2)
-            arcade.draw_text(label,bx+4,qt_y-28,C_WHITE,9,font_name="Courier New")
+        # Day + progress bar
+        txt(f"Day  {self.day}", 14, y, GRAY, 12)
+        y -= 18
+        bw   = SB_W - 28
+        prog = self.day_timer / self.day_len
+        rect(14, y - 10, bw, 10, DGRAY)
+        rect(14, y - 10, int(bw * prog), 10, BLUE)
+        y -= 28
 
-        if self.available_types:
-            pt=self.available_types[self.selected_type_idx%len(self.available_types)]
-            cfg=POST_CONFIG[pt]
-            vc=max(0.05,min(0.95,cfg["viral"]+(self.selected_quality-2)*0.10+min(self.streak*0.03,0.15)))
-            rc=cfg["ratio_risk"]+(4-self.selected_quality)*0.05
-            vc_y=qt_y-60
-            arcade.draw_text(f"viral chance:  {vc*100:.0f}%",20,vc_y,C_ACCENT,10,font_name="Courier New")
-            arcade.draw_text(f"ratio risk:    {rc*100:.0f}%",20,vc_y-18,C_RED,10,font_name="Courier New")
+        # Energy pip row
+        txt("ENERGY", 14, y, GRAY, 10)
+        y -= 20
+        pip_w = (SB_W - 30) / max(1, self.max_energy)
+        for i in range(self.max_energy):
+            c = GOLD if i < self.energy else DGRAY
+            arcade.draw_circle_filled(20 + (i + 0.5) * pip_w, y - 4, 6, c)
+        y -= 30
 
-        pb_y=80; flash=self.posting_anim
-        btn_color=tuple(min(255,int(c+(255-c)*flash*0.5)) for c in C_ACCENT)
-        draw_rect_filled(195,pb_y,350,50,(*btn_color,220))
-        draw_rect_outline(195,pb_y,350,50,C_ACCENT,2)
-        arcade.draw_text("[ PRESS SPACE TO POST ]",30,pb_y-9,C_DARK,14,bold=True,font_name="Courier New")
-        arcade.draw_text("← → change type  |  ↑ ↓ quality",20,30,(*C_LIGHT,120),9,font_name="Courier New")
+        arcade.draw_line(10, y, SB_W - 10, y, DGRAY, 1)
+        y -= 20
 
-    def _draw_stat(self,label,value,y,color):
-        arcade.draw_text(label,20,y,(*C_LIGHT,160),9,font_name="Courier New")
-        arcade.draw_text(value,200,y,color,18,bold=True,font_name="Courier New")
+        # Stats panel
+        for label, val in [
+            ("Posts Made",   str(self.posts_made)),
+            ("Gone Viral",   str(self.viral_count)),
+            ("Active Posts", str(len(self.posts))),
+            ("Total Likes",  f"{self.total_likes:,}"),
+        ]:
+            txt(label, 14, y, GRAY, 11)
+            txt(val, SB_W - 14, y, WHITE, 12, ax="right")
+            y -= 22
 
-    def _draw_right_panel(self):
-        draw_rect_filled(720,SCREEN_H//2,220,SCREEN_H,(*C_DARK,160))
-        arcade.draw_line(610,0,610,SCREEN_H,(*C_ACCENT,40),1)
-        arcade.draw_text("STATS",625,SCREEN_H-40,C_ACCENT,14,bold=True,font_name="Courier New")
+        y -= 14
+        arcade.draw_line(10, y, SB_W - 10, y, DGRAY, 1)
 
-        arcade.draw_text("FOLLOWER CURVE",625,SCREEN_H-70,C_LIGHT,9,font_name="Courier New")
-        graph_h=80; graph_y0=SCREEN_H-160
-        draw_rect_filled(720,graph_y0+graph_h//2,180,graph_h,C_MID)
-        if self.feed_items:
-            points=[]; n=min(len(self.feed_items),10); running=self.followers
-            for i,fi in enumerate(reversed(list(self.feed_items)[:n])):
-                x=625+i*(180//max(n,1))
-                running_norm=min(1.0,running/max(1,self.followers+100))
-                points.append((x,graph_y0+int(running_norm*graph_h*0.9)))
-                running=max(0,running-fi.record.followers_gained)
-            if len(points)>=2: arcade.draw_line_strip(points,C_ACCENT,2)
+        # Compose button
+        bh = 44
+        rect(10, 30, SB_W - 20, bh, BLUE)
+        txt("+ New Post", SB_W // 2, 30 + bh - 10, WHITE, 15, bold=True, ax="center")
+        txt("Space · or click here", SB_W // 2, 16, GRAY, 9, ax="center")
 
-        arcade.draw_text("BEST POST:",625,SCREEN_H-250,C_LIGHT,9,font_name="Courier New")
-        if self.best_post:
-            bp=self.best_post; cfg=POST_CONFIG[bp.post_type]
-            arcade.draw_text(f"{cfg['emoji']} {bp.post_type.value}",625,SCREEN_H-268,cfg["color"],12,bold=True,font_name="Courier New")
-            arcade.draw_text(f"{bp.likes:,} likes",625,SCREEN_H-285,C_PINK,10,font_name="Courier New")
-            arcade.draw_text(f"+{bp.followers_gained:,} followers",625,SCREEN_H-300,C_ACCENT,10,font_name="Courier New")
-        else:
-            arcade.draw_text("post something!",625,SCREEN_H-268,(*C_LIGHT,100),10,font_name="Courier New")
-
-        arcade.draw_text("UPCOMING UNLOCKS:",625,SCREEN_H-340,C_LIGHT,9,font_name="Courier New")
-        shown=0
-        for pt,cfg in POST_CONFIG.items():
-            if cfg["unlock"]>self.followers and shown<3:
-                arcade.draw_text(f"{cfg['emoji']} {pt.value} @ {int(cfg['unlock'])} (+{int(cfg['unlock']-self.followers)})",
-                                 625,SCREEN_H-358-shown*18,(*C_LIGHT,140),9,font_name="Courier New"); shown+=1
-
-        arcade.draw_text("HOW IT WORKS:",625,SCREEN_H-460,C_YELLOW,9,bold=True,font_name="Courier New")
-        for i,tip in enumerate(["• viral chance = base + quality","  bonus + streak bonus",
-                                 "• quality ↑ = more followers","• hot takes = high risk/reward",
-                                 "• random events every post","• 20 energy per post (regens)"]):
-            arcade.draw_text(tip,625,SCREEN_H-478-i*16,(*C_LIGHT,140),8,font_name="Courier New")
+    # ── Feed ──────────────────────────────────────────────────────────────────
 
     def _draw_feed(self):
-        arcade.draw_text("FEED",415,SCREEN_H-40,C_ACCENT,14,bold=True,font_name="Courier New")
-        arcade.draw_line(400,SCREEN_H-52,600,SCREEN_H-52,(*C_ACCENT,50),1)
-        for fi in self.feed_items[:6]:
-            rec=fi.record; cfg=POST_CONFIG[rec.post_type]; bx,by=400+fi.slide_x,fi.y
-            draw_rect_filled(bx+100,by-28,210,62,(*C_MID,180))
-            draw_rect_outline(bx+100,by-28,210,62,cfg["color"],1)
-            arcade.draw_text(f"{cfg['emoji']} {rec.post_type.value.upper()}",bx+5,by-14,cfg["color"],10,bold=True,font_name="Courier New")
-            arcade.draw_text(QUALITY_LABELS[rec.quality],bx+155,by-14,[C_RED,C_RED,C_YELLOW,C_ACCENT,C_PURPLE][rec.quality],9,font_name="Courier New")
-            arcade.draw_text(f"❤️ {rec.likes:,}  🔁 {rec.shares:,}",bx+5,by-30,C_LIGHT,9,font_name="Courier New")
-            sign="+" if rec.followers_gained>=0 else ""
-            arcade.draw_text(f"{sign}{rec.followers_gained:,} followers",bx+5,by-47,
-                             C_ACCENT if rec.followers_gained>=0 else C_RED,9,bold=True,font_name="Courier New")
+        txt("YOUR FEED", FX + 4, H - 18, GRAY, 11, bold=True)
 
-    def _draw_particles(self):
-        for p in self.particles:
-            arcade.draw_circle_filled(p.x,p.y,p.size*(p.life/p.max_life),(*p.color,int(255*p.life/p.max_life)))
+        if not self.posts:
+            txt("No posts yet — press Space to publish your first post!",
+                FX + FW // 2, H // 2, GRAY, 15, ax="center")
+            return
 
-    def _draw_notifications(self):
-        for i,n in enumerate(reversed(self.notifications)):
-            arcade.draw_text(n["msg"],SCREEN_W//2-150,SCREEN_H-80-i*28,
-                             (*n["color"],min(255,int(n["timer"]/3.0*255))),13,bold=True,font_name="Courier New")
+        y = H - 50 + self.scroll
+        for post in self.posts:
+            ch = self.CARD_H
+            if y - ch > H + 5:
+                y -= ch + 8
+                continue
+            if y < -10:
+                break
+            self._draw_card(post, FX + 2, y - ch, FW - 4, ch)
+            y -= ch + 8
 
-    def _draw_event_banner(self):
-        if not self.active_event: return
-        ev=self.active_event
-        alpha=int(180*(0.7+0.3*math.sin(self.total_time*8))*min(1.0,self.event_timer))
-        draw_rect_filled(SCREEN_W//2,50,SCREEN_W,40,(*ev["color"],alpha//2))
-        arcade.draw_text(ev["msg"],SCREEN_W//2-200,42,ev["color"],16,bold=True,font_name="Courier New")
+    def _draw_card(self, post: Post, x, y, w, h):
+        # Background — flashes orange/dark when newly viral
+        if post.viral_flash > 0:
+            t  = (post.viral_flash % 0.5) / 0.5
+            bg = lerp_c(CARD, CARD_VIR, t)
+        else:
+            bg = CARD_VIR if post.is_viral else CARD
+        rect(x, y, w, h, bg)
 
-    def on_key_press(self,key,modifiers):
-        n=max(1,len(self.available_types))
-        if key==arcade.key.SPACE: self.post_content()
-        elif key==arcade.key.RIGHT: self.selected_type_idx=(self.selected_type_idx+1)%n
-        elif key==arcade.key.LEFT:  self.selected_type_idx=(self.selected_type_idx-1)%n
-        elif key==arcade.key.UP:    self.selected_quality=min(4,self.selected_quality+1)
-        elif key==arcade.key.DOWN:  self.selected_quality=max(0,self.selected_quality-1)
-        elif key==arcade.key.R:     self.setup()
+        # Left color strip by post type
+        rect(x, y, 4, h, post.ptype.color)
+
+        # Post-type label
+        txt(f"[{post.ptype.icon}] {post.ptype.label}",
+            x + 12, y + h - 12, post.ptype.color, 12, bold=True)
+
+        # Viral badge (top-right)
+        if post.is_viral:
+            rect(x + w - 70, y + h - 22, 64, 18, ORANGE)
+            txt("VIRAL!", x + w - 38, y + h - 20, BLACK, 10, bold=True, ax="center")
+
+        # Quality bar (coloured strip under the label)
+        rect(x + 4, y + h - 4, w - 8, 4, lerp_c(RED, GREEN, post.quality))
+
+        # Post text (truncated to one line)
+        short = post.text[:68] + ("…" if len(post.text) > 68 else "")
+        txt(short, x + 12, y + h - 32, WHITE, 13)
+
+        # Engagement counters
+        for i, (icon, val) in enumerate([
+            ("<3", post.likes),
+            ("RT", post.shares),
+            ("//", post.comments),
+        ]):
+            txt(f"{icon} {val:,}", x + 14 + i * 90, y + 18, GRAY, 12)
+
+        # Lifetime countdown bar (bottom of card)
+        remaining = max(0.0, 1.0 - post.age / post.ptype.max_age)
+        rect(x, y, w, 4, DGRAY)
+        rect(x, y, int(w * remaining), 4, lerp_c(RED, BLUE, remaining))
+
+    # ── Compose overlay ───────────────────────────────────────────────────────
+
+    def _draw_compose(self):
+        # Dim the background
+        arcade.draw_rectangle_filled(W // 2, H // 2, W, H, (0, 0, 0, 170))
+
+        mw, mh = 640, 440
+        mx = W // 2 - mw // 2
+        my = H // 2 - mh // 2
+
+        rect(mx, my, mw, mh, PANEL)
+        rect_out(mx, my, mw, mh, BLUE, 2)
+
+        txt("Choose Post Type", W // 2, my + mh - 16,
+            WHITE, 20, bold=True, ax="center")
+        txt("click a button  or  press 1–5  ·  ESC to cancel",
+            W // 2, my + mh - 40, GRAY, 11, ax="center")
+
+        n       = len(self.post_types)
+        btn_h   = 56
+        gap     = 8
+        total   = n * btn_h + (n - 1) * gap
+        start_y = my + mh // 2 + total // 2 - 30
+
+        for i, pt in enumerate(self.post_types):
+            bx = mx + 20
+            by = start_y - i * (btn_h + gap) - btn_h
+            bw = mw - 40
+
+            hover = (self.hover_idx == i)
+            bg    = lerp_c(CARD, pt.color, 0.28) if hover else CARD
+            rect(bx, by, bw, btn_h, bg)
+            rect_out(bx, by, bw, btn_h, pt.color, 2 if hover else 1)
+
+            txt(str(i + 1), bx + 14, by + btn_h - 14, pt.color, 18, bold=True)
+            txt(f"[{pt.icon}]  {pt.label}",
+                bx + 44, by + btn_h - 16, WHITE, 15, bold=True)
+            txt(
+                f"Viral chance: {pt.viral_chance:.0%}  ·  "
+                f"Growth: {pt.base_growth:.0%}  ·  "
+                f"Lifetime: {pt.max_age}s  ·  {pt.desc}",
+                bx + 44, by + 10, GRAY, 10,
+            )
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+
+    def _draw_notifs(self):
+        y = 85
+        for n in list(reversed(self.notifs[-5:])):
+            alpha = int(min(1.0, n.timer) * 255)
+            c = (*n.color[:3], alpha)
+            txt(n.text, W - 16, y, c, 12, ax="right")
+            y += 22
+
+    # ── Input ─────────────────────────────────────────────────────────────────
+
+    def on_key_press(self, key, mod):
+        if key == arcade.key.ESCAPE:
+            self.composing = False
+            return
+
+        if key == arcade.key.SPACE and not self.composing:
+            self.composing = True
+            return
+
+        if self.composing:
+            mapping = {
+                arcade.key.KEY_1: 0, arcade.key.KEY_2: 1, arcade.key.KEY_3: 2,
+                arcade.key.KEY_4: 3, arcade.key.KEY_5: 4,
+            }
+            if key in mapping:
+                idx = mapping[key]
+                if idx < len(self.post_types):
+                    self._create_post(self.post_types[idx])
+            return
+
+        if key == arcade.key.UP:
+            self.scroll = max(0, self.scroll - 100)
+        elif key == arcade.key.DOWN:
+            self.scroll = min(len(self.posts) * (self.CARD_H + 8), self.scroll + 100)
+
+    def on_mouse_press(self, x, y, button, mod):
+        if self.composing:
+            idx = self._compose_hit(x, y)
+            if idx >= 0:
+                self._create_post(self.post_types[idx])
+        else:
+            # Sidebar compose button
+            if 10 <= x <= SB_W - 10 and 30 <= y <= 74:
+                self.composing = True
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        self.hover_idx = self._compose_hit(x, y) if self.composing else -1
+
+    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+        self.scroll = max(0, self.scroll - int(scroll_y * 35))
+
+    # ── Compose hit-test ──────────────────────────────────────────────────────
+
+    def _compose_hit(self, x, y) -> int:
+        mw, mh  = 640, 440
+        mx      = W // 2 - mw // 2
+        my      = H // 2 - mh // 2
+        n       = len(self.post_types)
+        btn_h   = 56
+        gap     = 8
+        total   = n * btn_h + (n - 1) * gap
+        start_y = my + mh // 2 + total // 2 - 30
+
+        for i in range(n):
+            bx = mx + 20
+            by = start_y - i * (btn_h + gap) - btn_h
+            bw = mw - 40
+            if bx <= x <= bx + bw and by <= y <= by + btn_h:
+                return i
+        return -1
 
 
-def main():
-    game=SocialMediaGame()
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    game = SocialSim()
     arcade.run()
-
-if __name__=="__main__":
-    main()
