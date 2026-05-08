@@ -2,7 +2,7 @@ import arcade
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
-TITLE = "Photo Button"
+TITLE = "Click Detection Test"
 
 show_square = False
 
