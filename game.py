@@ -478,6 +478,24 @@ class ComputerWindowView(arcade.View):
         self.window_y = SCREEN_HEIGHT / 2 - _sy(8)
         self.close_button_x = self.window_x + self.window_width / 2 - WINDOW_CLOSE_OFFSET_X
         self.close_button_y = self.window_y + self.window_height / 2 - WINDOW_CLOSE_OFFSET_Y
+        self.title_text = arcade.Text(
+            self.title,
+            self.window_x - self.window_width / 2 + WINDOW_TITLE_LEFT_PADDING,
+            self.window_y + self.window_height / 2 - _sy(38),
+            arcade.color.WHITE,
+            WINDOW_TITLE_FONT_SIZE,
+            anchor_x="left",
+            anchor_y="center",
+        )
+        self.close_text = arcade.Text(
+            "x",
+            self.close_button_x,
+            self.close_button_y - WINDOW_CLOSE_TEXT_OFFSET_Y,
+            arcade.color.WHITE,
+            WINDOW_CLOSE_FONT_SIZE,
+            anchor_x="center",
+            anchor_y="center",
+        )
 
     def on_show_view(self) -> None:
         arcade.set_background_color(arcade.color.BLACK)
@@ -512,14 +530,7 @@ class ComputerWindowView(arcade.View):
             self.window_y + self.window_height / 2 - WINDOW_HEADER_TOP_PADDING,
             arcade.color.BLACK_OLIVE,
         )
-        arcade.draw_text(
-            self.title,
-            self.window_x - self.window_width / 2 + WINDOW_TITLE_LEFT_PADDING,
-            self.window_y + self.window_height / 2 - _sy(38),
-            arcade.color.WHITE,
-            WINDOW_TITLE_FONT_SIZE,
-            anchor_y="center",
-        )
+        self.title_text.draw()
         arcade.draw_lrbt_rectangle_filled(
             self.close_button_x - WINDOW_CLOSE_HALF_SIZE,
             self.close_button_x + WINDOW_CLOSE_HALF_SIZE,
@@ -527,15 +538,7 @@ class ComputerWindowView(arcade.View):
             self.close_button_y + WINDOW_CLOSE_HALF_SIZE,
             arcade.color.RED_ORANGE,
         )
-        arcade.draw_text(
-            "x",
-            self.close_button_x,
-            self.close_button_y - WINDOW_CLOSE_TEXT_OFFSET_Y,
-            arcade.color.WHITE,
-            WINDOW_CLOSE_FONT_SIZE,
-            anchor_x="center",
-            anchor_y="center",
-        )
+        self.close_text.draw()
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
