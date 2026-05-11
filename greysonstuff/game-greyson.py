@@ -259,7 +259,7 @@ class Notif:
 
 # ── Main window ───────────────────────────────────────────────────────────────
 class Fashionista(arcade.Window):
-    CARD_H  = 132
+    CARD_H  = 148
     BAR_H   = 22      # window title bar height
     SB_BAR  = 26      # sidebar header bar height
 
@@ -358,8 +358,8 @@ class Fashionista(arcade.Window):
 
         S = "sb"
         # Title in bar
-        txt(S, "♡ FASHIONISTAS ♡", SB_W // 2, H - 8 - self.SB_BAR // 2,
-            TEXT_DARK, 11, bold=True, ax="center", ay="center")
+        txt(S, "FASHIONISTAS ♡", SB_W // 2, H - 8 - self.SB_BAR // 2,
+            TEXT_DARK, 9, bold=True, ax="center", ay="center")
 
         y = H - 16 - self.SB_BAR - 18
 
@@ -417,9 +417,9 @@ class Fashionista(arcade.Window):
             ("active posts", str(len(self.posts))),
             ("total likes",  f"{self.total_likes:,}"),
         ]:
-            txt(S, label, 28,        y, TEXT_MED,  9)
+            txt(S, label, 28,        y, TEXT_MED,  10)
             txt(S, val,   SB_W - 28, y, TEXT_DARK, 10, bold=True, ax="right")
-            y -= 20
+            y -= 22
 
         hline(30, SB_W - 30, y, TEXT_LITE)
 
@@ -484,24 +484,24 @@ class Fashionista(arcade.Window):
         # Quality stars  ★★★☆☆
         stars = max(1, round(post.quality * 5))
         star_str = "★" * stars + "☆" * (5 - stars)
-        txt(S, star_str, x + 12, y + h - bh - 34, GOLD, 12)
+        txt(S, star_str, x + 12, y + h - bh - 38, GOLD, 12)
 
         # Divider
-        hline(x + 10, x + w - 10, y + 38, BLUSH)
+        hline(x + 10, x + w - 10, y + 50, BLUSH)
 
         # Engagement
-        txt(S, f"♡ {post.likes:,}",  x + 14,        y + 20, TEXT_MED, 11)
-        txt(S, f"↺ {post.shares:,}", x + 14 + 95,   y + 20, TEXT_MED, 11)
-        txt(S, f"✉ {post.comments:,}", x + 14 + 190, y + 20, TEXT_MED, 11)
+        txt(S, f"♡ {post.likes:,}",  x + 14,        y + 34, TEXT_MED, 11)
+        txt(S, f"↺ {post.shares:,}", x + 14 + 95,   y + 34, TEXT_MED, 11)
+        txt(S, f"✉ {post.comments:,}", x + 14 + 190, y + 34, TEXT_MED, 11)
 
-        # Lifetime bar — thin pill at very bottom of card
+        # Lifetime bar — thin pill at bottom of card, below engagement
         remaining = max(0.0, 1.0 - post.age / post.ptype.max_age)
         track_w   = w - 24
-        pill(x + 12, y + 4, track_w, 8, BLUSH, TEXT_LITE)
+        pill(x + 12, y + 8, track_w, 8, BLUSH, TEXT_LITE)
         if remaining > 0.02:
             fill_w = max(8, int(track_w * remaining))
             fill_c = lerp_c(BAR_PEACH[1], bar[0], remaining)
-            pill(x + 12, y + 4, fill_w, 8, fill_c, bar[1])
+            pill(x + 12, y + 8, fill_w, 8, fill_c, bar[1])
 
     # ── Compose overlay ───────────────────────────────────────────────────────
     def _draw_compose(self):
