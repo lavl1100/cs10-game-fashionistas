@@ -9,9 +9,11 @@ from typing import Callable, Optional
 
 import arcade
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 900
 SCREEN_TITLE = "Fashionidísimitas"
+
+UI_SCALE = SCREEN_WIDTH / 800
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 BACKGROUND_IMAGE = ASSETS_DIR / "home_background.png"
@@ -28,23 +30,29 @@ BUTTON_ACTIVE_IMAGE_PATHS = {
     "social media": ASSETS_DIR / "social_media_button_active.png",
 }
 
-SIDE_BAR_X = 166
-SIDE_BAR_Y = 300
-SIDE_BAR_WIDTH = 282
-SIDE_BAR_HEIGHT = 410
+def _scaled(value: float) -> float:
+    return value * UI_SCALE
 
-TOP_BAR_Y = SCREEN_HEIGHT - 34
 
-CONTENT_CARD_X = 585
-CONTENT_CARD_Y = 275
-CONTENT_CARD_WIDTH = 382
-CONTENT_CARD_HEIGHT = 316
+SIDE_BAR_X = _scaled(166)
+SIDE_BAR_Y = _scaled(300)
+SIDE_BAR_WIDTH = _scaled(282)
+SIDE_BAR_HEIGHT = _scaled(410)
 
-HOME_BUTTON_WIDTH = 60
-HOME_BUTTON_HEIGHT = 60
-HOME_BUTTON_LEFT = 40
-HOME_BUTTON_TOP = 452
-HOME_BUTTON_GAP = 12
+TOP_BAR_Y = SCREEN_HEIGHT - _scaled(34)
+
+CONTENT_CARD_X = _scaled(585)
+CONTENT_CARD_Y = _scaled(275)
+CONTENT_CARD_WIDTH = _scaled(382)
+CONTENT_CARD_HEIGHT = _scaled(316)
+
+HOME_BUTTON_WIDTH = _scaled(60)
+HOME_BUTTON_HEIGHT = _scaled(60)
+HOME_BUTTON_LEFT = _scaled(40)
+HOME_BUTTON_TOP = _scaled(452)
+HOME_BUTTON_GAP = _scaled(12)
+HOME_BUTTON_IMAGE_WIDTH = _scaled(42)
+HOME_BUTTON_IMAGE_HEIGHT = _scaled(42)
 
 PRESS_ANIMATION_TIME = 0.18
 PRESS_SHRINK_SCALE = 0.86
@@ -228,6 +236,8 @@ class HomeButton:
         self.center_x = center_x
         self.center_y = center_y
         self.on_activate = on_activate
+        self.hit_width = HOME_BUTTON_WIDTH
+        self.hit_height = HOME_BUTTON_HEIGHT
         self.press_started_at: Optional[float] = None
         self.pending_activation = False
         self.current_scale = 1.0
@@ -248,7 +258,14 @@ class HomeButton:
     def _build_sprite(self, active: bool) -> arcade.Sprite:
         image_path = BUTTON_ACTIVE_IMAGE_PATHS.get(self.label) if active else BUTTON_IMAGE_PATHS[self.label]
         fallback_color = arcade.color.TAN if active else arcade.color.DARK_SLATE_BLUE
-        sprite = _make_sprite(image_path if image_path is not None else BUTTON_IMAGE_PATHS[self.label], self.center_x, self.center_y, HOME_BUTTON_WIDTH, HOME_BUTTON_HEIGHT, fallback_color)
+        sprite = _make_sprite(
+            image_path if image_path is not None else BUTTON_IMAGE_PATHS[self.label],
+            self.center_x,
+            self.center_y,
+            HOME_BUTTON_IMAGE_WIDTH,
+            HOME_BUTTON_IMAGE_HEIGHT,
+            fallback_color,
+        )
         sprite.alpha = 230
         return sprite
 
@@ -260,8 +277,8 @@ class HomeButton:
 
     def hit_test(self, x: float, y: float) -> bool:
         return (
-            abs(x - self.sprite.center_x) <= self.sprite.width / 2
-            and abs(y - self.sprite.center_y) <= self.sprite.height / 2
+            abs(x - self.sprite.center_x) <= self.hit_width / 2
+            and abs(y - self.sprite.center_y) <= self.hit_height / 2
         )
 
     def press(self, now: float) -> None:
@@ -306,33 +323,33 @@ class HomeView(arcade.View):
         self.side_bar = DrawableSprite(_make_panel(SIDE_BAR_X, SIDE_BAR_Y, SIDE_BAR_WIDTH, SIDE_BAR_HEIGHT, arcade.color.DARK_SLATE_GRAY, 205))
         self.content_card = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH, CONTENT_CARD_HEIGHT, arcade.color.BLACK_OLIVE, 180))
         self.content_border = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH + 4, CONTENT_CARD_HEIGHT + 4, arcade.color.WHITE, 255))
-        self.money_box = StatusBox("Money", "$120", 410, TOP_BAR_Y)
-        self.energy_box = StatusBox("Energy", "85%", 558, TOP_BAR_Y)
-        self.level_box = StatusBox("Level", "1", 699, TOP_BAR_Y, width=108, accent_color=arcade.color.TAN)
+        self.money_box = StatusBox("Money", "$120", _scaled(120), TOP_BAR_Y)
+        self.energy_box = StatusBox("Energy", "85%", _scaled(320), TOP_BAR_Y)
+        self.level_box = StatusBox("Level", "1", _scaled(520), TOP_BAR_Y, width=_scaled(108), accent_color=arcade.color.TAN)
         self.title_text = arcade.Text(
             "Fashionidísimitas",
-            456,
-            520,
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT - _scaled(165),
             arcade.color.WHITE,
-            28,
+            32,
             anchor_x="center",
             anchor_y="center",
         )
         self.subtitle_text = arcade.Text(
             "Choose a computer window to manage your influencer life.",
-            456,
-            486,
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT - _scaled(204),
             arcade.color.LIGHT_GRAY,
-            13,
+            15,
             anchor_x="center",
             anchor_y="center",
         )
         self.note_text = arcade.Text(
             "This MVP starts with empty screens so the team can build them later.",
-            456,
-            452,
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT - _scaled(241),
             arcade.color.LIGHT_GRAY,
-            11,
+            13,
             anchor_x="center",
             anchor_y="center",
         )
@@ -438,10 +455,10 @@ class ComputerWindowView(arcade.View):
         self.title = title
         self.home_view = home_view
         self.on_close = on_close
-        self.window_width = 560
-        self.window_height = 390
+        self.window_width = _scaled(560)
+        self.window_height = _scaled(390)
         self.window_x = SCREEN_WIDTH / 2
-        self.window_y = SCREEN_HEIGHT / 2 - 8
+        self.window_y = SCREEN_HEIGHT / 2 - _scaled(8)
         self.close_button_x = self.window_x + self.window_width / 2 - 24
         self.close_button_y = self.window_y + self.window_height / 2 - 21
 
