@@ -204,7 +204,7 @@ class StatusBox:
             self.center_x - self.width * 0.24,
             self.center_y + 9,
             arcade.color.LIGHT_GRAY,
-            9,
+            max(9, int(_s(9))),
             anchor_x="left",
             anchor_y="center",
         )
@@ -213,7 +213,7 @@ class StatusBox:
             self.center_x - self.width * 0.24,
             self.center_y - 8,
             arcade.color.WHITE,
-            15,
+            max(12, int(_s(15))),
             anchor_x="left",
             anchor_y="center",
         )
@@ -254,7 +254,7 @@ class HomeButton:
             center_x,
             center_y,
             arcade.color.WHITE,
-            12,
+            max(11, int(_s(12))),
             anchor_x="center",
             anchor_y="center",
         )
@@ -305,7 +305,7 @@ class HomeButton:
     def draw(self) -> None:
         self.sprite.draw()
         if self.show_label:
-            self.text.font_size = max(11, int(15 * self.current_scale))
+            self.text.font_size = max(11, int(_s(15) * self.current_scale))
             self.text.draw()
 
 
@@ -319,16 +319,16 @@ class HomeView(arcade.View):
         self.top_bar = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, TOP_BAR_Y, SCREEN_WIDTH, _sy(92), arcade.color.BLACK, 100))
         self.side_bar = DrawableSprite(_make_panel(SIDE_BAR_X, SIDE_BAR_Y, SIDE_BAR_WIDTH, SIDE_BAR_HEIGHT, arcade.color.DARK_SLATE_GRAY, 205))
         self.content_card = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH, CONTENT_CARD_HEIGHT, arcade.color.BLACK_OLIVE, 180))
-        self.content_border = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH + 4, CONTENT_CARD_HEIGHT + 4, arcade.color.WHITE, 255))
-        self.money_box = StatusBox("Money", "$120", _sx(410), TOP_BAR_Y)
-        self.energy_box = StatusBox("Energy", "85%", _sx(558), TOP_BAR_Y)
-        self.level_box = StatusBox("Level", "1", _sx(699), TOP_BAR_Y, width=_sx(108), accent_color=arcade.color.TAN)
+        self.content_border = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH + _s(4), CONTENT_CARD_HEIGHT + _s(4), arcade.color.WHITE, 255))
+        self.money_box = StatusBox("Money", "$120", _sx(410), TOP_BAR_Y, width=_sx(132), height=_sy(42))
+        self.energy_box = StatusBox("Energy", "85%", _sx(558), TOP_BAR_Y, width=_sx(132), height=_sy(42))
+        self.level_box = StatusBox("Level", "1", _sx(699), TOP_BAR_Y, width=_sx(108), height=_sy(42), accent_color=arcade.color.TAN)
         self.title_text = arcade.Text(
             "Fashionidísimitas",
             _sx(456),
             _sy(520),
             arcade.color.WHITE,
-            int(_s(28)),
+            max(24, int(_s(28))),
             anchor_x="center",
             anchor_y="center",
         )
@@ -337,7 +337,7 @@ class HomeView(arcade.View):
             _sx(456),
             _sy(486),
             arcade.color.LIGHT_GRAY,
-            int(_s(13)),
+            max(12, int(_s(13))),
             anchor_x="center",
             anchor_y="center",
         )
@@ -346,7 +346,7 @@ class HomeView(arcade.View):
             _sx(456),
             _sy(452),
             arcade.color.LIGHT_GRAY,
-            int(_s(11)),
+            max(11, int(_s(11))),
             anchor_x="center",
             anchor_y="center",
         )
@@ -452,8 +452,8 @@ class ComputerWindowView(arcade.View):
         self.title = title
         self.home_view = home_view
         self.on_close = on_close
-        self.window_width = 560
-        self.window_height = 390
+        self.window_width = _sx(560)
+        self.window_height = _sy(390)
         self.window_x = SCREEN_WIDTH / 2
         self.window_y = SCREEN_HEIGHT / 2 - _sy(8)
         self.close_button_x = self.window_x + self.window_width / 2 - _sx(24)
@@ -483,12 +483,12 @@ class ComputerWindowView(arcade.View):
             self.window_y - self.window_height / 2,
             self.window_y + self.window_height / 2,
             arcade.color.WHITE,
-            3,
+            max(3, int(_s(3))),
         )
         arcade.draw_lrbt_rectangle_filled(
             self.window_x - self.window_width / 2,
             self.window_x + self.window_width / 2,
-            self.window_y + self.window_height / 2 - 50,
+            self.window_y + self.window_height / 2 - _sy(50),
             self.window_y + self.window_height / 2 - _sy(6),
             arcade.color.BLACK_OLIVE,
         )
@@ -497,7 +497,7 @@ class ComputerWindowView(arcade.View):
             self.window_x - self.window_width / 2 + _sx(18),
             self.window_y + self.window_height / 2 - _sy(38),
             arcade.color.WHITE,
-            int(_s(18)),
+            max(16, int(_s(18))),
             anchor_y="center",
         )
         arcade.draw_lrbt_rectangle_filled(
@@ -512,7 +512,7 @@ class ComputerWindowView(arcade.View):
             self.close_button_x,
             self.close_button_y - 1,
             arcade.color.WHITE,
-            int(_s(18)),
+            max(16, int(_s(18))),
             anchor_x="center",
             anchor_y="center",
         )
