@@ -13,19 +13,19 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "Fashionidísimitas"
 
-ASSETS_DIR = Path("assets")
-BACKGROUND_IMAGE = ASSETS_DIR / "backgrounds" / "home_background.png"
+ASSETS_DIR = Path(__file__).resolve().parent / "assets"
+BACKGROUND_IMAGE = ASSETS_DIR / "home_background.png"
 
 BUTTON_IMAGE_PATHS = {
-    "settings": ASSETS_DIR / "buttons" / "settings_button.png",
-    "social media": ASSETS_DIR / "buttons" / "social_media_button.png",
-    "closet": ASSETS_DIR / "buttons" / "closet_button.png",
-    "clothing store": ASSETS_DIR / "buttons" / "clothing_store_button.png",
-    "activity center": ASSETS_DIR / "buttons" / "activity_center_button.png",
+    "settings": ASSETS_DIR / "settings_button.png",
+    "social media": ASSETS_DIR / "social_media_button.png",
+    "closet": ASSETS_DIR / "closet_button.png",
+    "clothing store": ASSETS_DIR / "clothing_store_button.png",
+    "activity center": ASSETS_DIR / "activity_center_button.png",
 }
 
 BUTTON_ACTIVE_IMAGE_PATHS = {
-    "social media": ASSETS_DIR / "buttons" / "social_media_button_active.png",
+    "social media": ASSETS_DIR / "social_media_button_active.png",
 }
 
 SIDE_BAR_X = 166
