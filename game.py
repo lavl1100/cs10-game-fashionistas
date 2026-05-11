@@ -290,15 +290,16 @@ class HomeView(arcade.View):
 
     def _make_open_action(self, label: str) -> Callable[[], None]:
         def open_window() -> None:
-            if label == "social media":
-                self._set_button_active(label, True)
-            self.window.show_view(
-                ComputerWindowView(
-                    title=label.title(),
-                    home_view=self,
-                    on_close=lambda: self._close_window(label),
+            def show_window() -> None:
+                self.window.show_view(
+                    ComputerWindowView(
+                        title=label.title(),
+                        home_view=self,
+                        on_close=lambda: self._close_window(label),
+                    )
                 )
-            )
+
+            self._pending_action = show_window
 
         return open_window
 
@@ -338,6 +339,8 @@ class HomeView(arcade.View):
         now = arcade.get_time()
         for nav_button in self.buttons:
             if nav_button.hit_test(x, y):
+                if nav_button.label == "social media":
+                    nav_button.set_active(True)
                 nav_button.press(now)
                 break
 
@@ -345,6 +348,11 @@ class HomeView(arcade.View):
         now = arcade.get_time()
         for nav_button in self.buttons:
             nav_button.update(delta_time, now)
+
+        if self._pending_action is not None:
+            action = self._pending_action
+            self._pending_action = None
+            action()
 
 
 class ComputerWindowView(arcade.View):
