@@ -189,14 +189,14 @@ class StatusBox:
     accent_color: arcade.Color = arcade.color.DARK_SEA_GREEN
 
     def __post_init__(self) -> None:
-        self.shadow = DrawableSprite(_make_panel(self.center_x + 3, self.center_y - 3, self.width, self.height, arcade.color.BLACK, 110))
-        self.border = DrawableSprite(_make_panel(self.center_x, self.center_y, self.width + 4, self.height + 4, self.border_color, 255))
+        self.shadow = DrawableSprite(_make_panel(self.center_x + _scaled(3), self.center_y - _scaled(3), self.width, self.height, arcade.color.BLACK, 110))
+        self.border = DrawableSprite(_make_panel(self.center_x, self.center_y, self.width + _scaled(4), self.height + _scaled(4), self.border_color, 255))
         self.panel = DrawableSprite(_make_panel(self.center_x, self.center_y, self.width, self.height, self.fill_color, 220))
-        self.accent = DrawableSprite(_make_panel(self.center_x - self.width * 0.36, self.center_y, 4, self.height - 10, self.accent_color, 255))
+        self.accent = DrawableSprite(_make_panel(self.center_x - self.width * 0.36, self.center_y, _scaled(4), self.height - _scaled(10), self.accent_color, 255))
         self.label_text = arcade.Text(
             self.label.upper(),
             self.center_x - self.width * 0.24,
-            self.center_y + 9,
+            self.center_y + _scaled(9),
             arcade.color.LIGHT_GRAY,
             max(10, int(9 * UI_SCALE)),
             anchor_x="left",
@@ -205,7 +205,7 @@ class StatusBox:
         self.value_text = arcade.Text(
             self.value,
             self.center_x - self.width * 0.24,
-            self.center_y - 8,
+            self.center_y - _scaled(8),
             arcade.color.WHITE,
             max(15, int(15 * UI_SCALE)),
             anchor_x="left",
@@ -250,7 +250,7 @@ class HomeButton:
             center_x,
             center_y,
             arcade.color.WHITE,
-            12,
+            max(12, int(12 * UI_SCALE)),
             anchor_x="center",
             anchor_y="center",
         )
@@ -319,7 +319,7 @@ class HomeView(arcade.View):
         super().__init__()
         self.background_color = arcade.color.BLACK
         self.background_sprite = DrawableSprite(self._build_background_sprite())
-        self.top_bar = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, TOP_BAR_Y, SCREEN_WIDTH, 92, arcade.color.BLACK, 100))
+        self.top_bar = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, TOP_BAR_Y, SCREEN_WIDTH, _scaled(92), arcade.color.BLACK, 100))
         self.side_bar = DrawableSprite(_make_panel(SIDE_BAR_X, SIDE_BAR_Y, SIDE_BAR_WIDTH, SIDE_BAR_HEIGHT, arcade.color.DARK_SLATE_GRAY, 205))
         self.content_card = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH, CONTENT_CARD_HEIGHT, arcade.color.BLACK_OLIVE, 180))
         self.content_border = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH + 4, CONTENT_CARD_HEIGHT + 4, arcade.color.WHITE, 255))
@@ -459,8 +459,8 @@ class ComputerWindowView(arcade.View):
         self.window_height = _scaled(390)
         self.window_x = SCREEN_WIDTH / 2
         self.window_y = SCREEN_HEIGHT / 2 - _scaled(8)
-        self.close_button_x = self.window_x + self.window_width / 2 - 24
-        self.close_button_y = self.window_y + self.window_height / 2 - 21
+        self.close_button_x = self.window_x + self.window_width / 2 - _scaled(24)
+        self.close_button_y = self.window_y + self.window_height / 2 - _scaled(21)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(arcade.color.BLACK)
@@ -472,7 +472,10 @@ class ComputerWindowView(arcade.View):
     def on_draw(self) -> None:
         self.clear()
         arcade.draw_lrbt_rectangle_filled(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT, arcade.color.BLACK)
-        arcade.draw_lrbt_rectangle_filled(19, SCREEN_WIDTH - 19, 19, SCREEN_HEIGHT - 19, arcade.color.DARK_SLATE_GRAY)
+        margin = _scaled(19)
+        title_bar_height = _scaled(50)
+        close_size = _scaled(13)
+        arcade.draw_lrbt_rectangle_filled(margin, SCREEN_WIDTH - margin, margin, SCREEN_HEIGHT - margin, arcade.color.DARK_SLATE_GRAY)
         arcade.draw_lrbt_rectangle_filled(
             self.window_x - self.window_width / 2,
             self.window_x + self.window_width / 2,
@@ -491,31 +494,31 @@ class ComputerWindowView(arcade.View):
         arcade.draw_lrbt_rectangle_filled(
             self.window_x - self.window_width / 2,
             self.window_x + self.window_width / 2,
-            self.window_y + self.window_height / 2 - 50,
+            self.window_y + self.window_height / 2 - title_bar_height,
             self.window_y + self.window_height / 2 - 6,
             arcade.color.BLACK_OLIVE,
         )
         arcade.draw_text(
             self.title,
-            self.window_x - self.window_width / 2 + 18,
-            self.window_y + self.window_height / 2 - 38,
+            self.window_x - self.window_width / 2 + _scaled(18),
+            self.window_y + self.window_height / 2 - _scaled(38),
             arcade.color.WHITE,
-            18,
+            max(18, int(18 * UI_SCALE)),
             anchor_y="center",
         )
         arcade.draw_lrbt_rectangle_filled(
-            self.close_button_x - 13,
-            self.close_button_x + 13,
-            self.close_button_y - 13,
-            self.close_button_y + 13,
+            self.close_button_x - close_size,
+            self.close_button_x + close_size,
+            self.close_button_y - close_size,
+            self.close_button_y + close_size,
             arcade.color.RED_ORANGE,
         )
         arcade.draw_text(
             "x",
             self.close_button_x,
-            self.close_button_y - 1,
+            self.close_button_y - _scaled(1),
             arcade.color.WHITE,
-            18,
+            max(18, int(18 * UI_SCALE)),
             anchor_x="center",
             anchor_y="center",
         )
@@ -525,8 +528,8 @@ class ComputerWindowView(arcade.View):
             return
 
         if (
-            abs(x - self.close_button_x) <= 13
-            and abs(y - self.close_button_y) <= 13
+            abs(x - self.close_button_x) <= _scaled(13)
+            and abs(y - self.close_button_y) <= _scaled(13)
         ):
             self._close()
 
