@@ -17,9 +17,9 @@ ECO_FABRICS = ["cotton", "linen", "wool", "hemp"]
 class ThriftItem:
     def __init__(self):
         textures = [
-            "assets/shirt.png",
-            "assets/dress.png",
-            "assets/pants.png"
+            "shirt.png",
+            "dress.png",
+            "pants.png"
         ]
 
         self.sprite = arcade.Sprite(random.choice(textures), scale=0.4)
