@@ -40,11 +40,11 @@ CONTENT_CARD_Y = 275
 CONTENT_CARD_WIDTH = 382
 CONTENT_CARD_HEIGHT = 316
 
-HOME_BUTTON_WIDTH = 180
-HOME_BUTTON_HEIGHT = 48
-HOME_BUTTON_LEFT = 20
-HOME_BUTTON_TOP = 450
-HOME_BUTTON_GAP = 12
+HOME_BUTTON_WIDTH = 220
+HOME_BUTTON_HEIGHT = 58
+HOME_BUTTON_LEFT = 55
+HOME_BUTTON_TOP = 455
+HOME_BUTTON_GAP = 14
 
 PRESS_ANIMATION_TIME = 0.18
 PRESS_SHRINK_SCALE = 0.86
@@ -240,7 +240,7 @@ class HomeButton:
             center_x,
             center_y,
             arcade.color.WHITE,
-            13,
+            15,
             anchor_x="center",
             anchor_y="center",
         )
