@@ -144,22 +144,14 @@ class HomeButton:
         )
 
     def _build_sprite(self) -> arcade.Sprite:
-        image_path = BUTTON_IMAGE_PATHS[self.label]
-        if _path_exists(image_path):
-            sprite = arcade.Sprite(str(image_path))
-            sprite.center_x = self.center_x
-            sprite.center_y = self.center_y
-            sprite.width = self.base_width
-            sprite.height = self.base_height
-            return sprite
-
-        sprite = arcade.SpriteSolidColor(
+        sprite = _make_sprite(
+            BUTTON_IMAGE_PATHS[self.label],
+            self.center_x,
+            self.center_y,
             self.base_width,
             self.base_height,
             arcade.color.DARK_SLATE_BLUE,
         )
-        sprite.center_x = self.center_x
-        sprite.center_y = self.center_y
         sprite.alpha = 230
         return sprite
 
@@ -231,22 +223,17 @@ class HomeView(arcade.View):
         self.level_box = StatusBox("Level", "1", 740, SCREEN_HEIGHT - 34, width=100)
         self.buttons: list[HomeButton] = []
         self._pending_view_factory: Optional[Callable[[], arcade.View]] = None
-        self._pending_view_started_at: Optional[float] = None
         self._build_buttons()
 
     def _build_background_sprite(self) -> arcade.Sprite:
-        if _path_exists(BACKGROUND_IMAGE):
-            sprite = arcade.Sprite(str(BACKGROUND_IMAGE))
-            sprite.center_x = SCREEN_WIDTH / 2
-            sprite.center_y = SCREEN_HEIGHT / 2
-            sprite.width = SCREEN_WIDTH
-            sprite.height = SCREEN_HEIGHT
-            return sprite
-
-        sprite = arcade.SpriteSolidColor(SCREEN_WIDTH, SCREEN_HEIGHT, arcade.color.DARK_SLATE_GRAY)
-        sprite.center_x = SCREEN_WIDTH / 2
-        sprite.center_y = SCREEN_HEIGHT / 2
-        return sprite
+        return _make_sprite(
+            BACKGROUND_IMAGE,
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT,
+            arcade.color.DARK_SLATE_GRAY,
+        )
 
     def _build_buttons(self) -> None:
         labels = [
@@ -258,13 +245,12 @@ class HomeView(arcade.View):
         ]
         for index, label in enumerate(labels):
             center_y = HOME_BUTTON_TOP - index * (HOME_BUTTON_HEIGHT + HOME_BUTTON_GAP)
-        button = HomeButton(label, HOME_BUTTON_LEFT + HOME_BUTTON_WIDTH / 2, center_y, self._make_transition(label))
+            button = HomeButton(label, HOME_BUTTON_LEFT + HOME_BUTTON_WIDTH / 2, center_y, self._make_transition(label))
             self.buttons.append(button)
 
     def _make_transition(self, label: str) -> Callable[[float], None]:
-        def transition(now: float) -> None:
+        def transition(_now: float) -> None:
             self._pending_view_factory = lambda: BlankSectionView(label.title(), self._home_factory)
-            self._pending_view_started_at = now
 
         return transition
 
@@ -290,7 +276,6 @@ class HomeView(arcade.View):
         for nav_button in self.buttons:
             if nav_button.hit_test(x, y):
                 nav_button.press(now)
-                self._pending_view_started_at = now
                 break
 
     def on_update(self, delta_time: float) -> None:
@@ -298,11 +283,9 @@ class HomeView(arcade.View):
         for nav_button in self.buttons:
             nav_button.update(delta_time, now)
 
-        if self._pending_view_factory is not None and self._pending_view_started_at is not None:
-            if now - self._pending_view_started_at >= PRESS_ANIMATION_TIME:
-                self.window.show_view(self._pending_view_factory())
-                self._pending_view_factory = None
-                self._pending_view_started_at = None
+        if self._pending_view_factory is not None:
+            self.window.show_view(self._pending_view_factory())
+            self._pending_view_factory = None
 
 
 def main() -> None:
