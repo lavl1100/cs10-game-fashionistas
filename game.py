@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import time
 from typing import Callable, Optional
 
 import arcade
@@ -47,6 +48,11 @@ HOME_BUTTON_GAP = 14
 
 PRESS_ANIMATION_TIME = 0.18
 PRESS_SHRINK_SCALE = 0.86
+
+
+def _current_time() -> float:
+    """Return a monotonic timestamp for animation timing."""
+    return time.perf_counter()
 
 
 def _path_exists(path: Path) -> bool:
@@ -336,7 +342,7 @@ class HomeView(arcade.View):
         if button != arcade.MOUSE_BUTTON_LEFT:
             return
 
-        now = arcade.get_time()
+        now = _current_time()
         for nav_button in self.buttons:
             if nav_button.hit_test(x, y):
                 if nav_button.label == "social media":
@@ -345,7 +351,7 @@ class HomeView(arcade.View):
                 break
 
     def on_update(self, delta_time: float) -> None:
-        now = arcade.get_time()
+        now = _current_time()
         for nav_button in self.buttons:
             nav_button.update(delta_time, now)
 
