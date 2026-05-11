@@ -62,7 +62,7 @@ HOME_BUTTON_WIDTH = _ss(60)
 HOME_BUTTON_HEIGHT = _ss(60)
 HOME_BUTTON_LEFT = _sx(40)
 HOME_BUTTON_TOP = _sy(452)
-HOME_BUTTON_GAP = _ss(12)
+HOME_BUTTON_GAP = _ss(24)
 
 STATUS_LABEL_FONT_SIZE = _ss(9)
 STATUS_VALUE_FONT_SIZE = _ss(15)
@@ -293,10 +293,7 @@ class HomeButton:
         self.sprite.scale = self.current_scale
 
     def hit_test(self, x: float, y: float) -> bool:
-        return (
-            abs(x - self.sprite.center_x) <= self.sprite.width / 2
-            and abs(y - self.sprite.center_y) <= self.sprite.height / 2
-        )
+        return self.sprite.collides_with_point((x, y))
 
     def press(self, now: float) -> None:
         self.press_started_at = now
