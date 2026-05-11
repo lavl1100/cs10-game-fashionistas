@@ -182,8 +182,8 @@ class StatusBox:
     value: str
     center_x: float
     center_y: float
-    width: float = 132
-    height: float = 42
+    width: float = _scaled(132)
+    height: float = _scaled(42)
     fill_color: arcade.Color = arcade.color.DARK_SLATE_GRAY
     border_color: arcade.Color = arcade.color.WHITE
     accent_color: arcade.Color = arcade.color.DARK_SEA_GREEN
@@ -198,7 +198,7 @@ class StatusBox:
             self.center_x - self.width * 0.24,
             self.center_y + 9,
             arcade.color.LIGHT_GRAY,
-            9,
+            max(10, int(9 * UI_SCALE)),
             anchor_x="left",
             anchor_y="center",
         )
@@ -207,7 +207,7 @@ class StatusBox:
             self.center_x - self.width * 0.24,
             self.center_y - 8,
             arcade.color.WHITE,
-            15,
+            max(15, int(15 * UI_SCALE)),
             anchor_x="left",
             anchor_y="center",
         )
