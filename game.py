@@ -9,9 +9,27 @@ from typing import Callable, Optional
 
 import arcade
 
+BASE_SCREEN_WIDTH = 800
+BASE_SCREEN_HEIGHT = 600
 SCREEN_WIDTH = 1500
 SCREEN_HEIGHT = 900
 SCREEN_TITLE = "Fashionidísimitas"
+
+SCALE_X = SCREEN_WIDTH / BASE_SCREEN_WIDTH
+SCALE_Y = SCREEN_HEIGHT / BASE_SCREEN_HEIGHT
+UI_SCALE = min(SCALE_X, SCALE_Y)
+
+
+def _sx(value: float) -> float:
+    return value * SCALE_X
+
+
+def _sy(value: float) -> float:
+    return value * SCALE_Y
+
+
+def _ss(value: float) -> float:
+    return value * UI_SCALE
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 BACKGROUND_IMAGE = ASSETS_DIR / "home_background.png"
@@ -28,23 +46,37 @@ BUTTON_ACTIVE_IMAGE_PATHS = {
     "social media": ASSETS_DIR / "social_media_button_active.png",
 }
 
-SIDE_BAR_X = 166
-SIDE_BAR_Y = 300
-SIDE_BAR_WIDTH = 282
-SIDE_BAR_HEIGHT = 410
+SIDE_BAR_X = _sx(166)
+SIDE_BAR_Y = _sy(300)
+SIDE_BAR_WIDTH = _sx(282)
+SIDE_BAR_HEIGHT = _sy(410)
 
-TOP_BAR_Y = SCREEN_HEIGHT - 34
+TOP_BAR_Y = SCREEN_HEIGHT - _sy(34)
 
-CONTENT_CARD_X = 585
-CONTENT_CARD_Y = 275
-CONTENT_CARD_WIDTH = 382
-CONTENT_CARD_HEIGHT = 316
+CONTENT_CARD_X = _sx(585)
+CONTENT_CARD_Y = _sy(275)
+CONTENT_CARD_WIDTH = _sx(382)
+CONTENT_CARD_HEIGHT = _sy(316)
 
-HOME_BUTTON_WIDTH = 60
-HOME_BUTTON_HEIGHT = 60
-HOME_BUTTON_LEFT = 40
-HOME_BUTTON_TOP = 452
-HOME_BUTTON_GAP = 12
+HOME_BUTTON_WIDTH = _ss(60)
+HOME_BUTTON_HEIGHT = _ss(60)
+HOME_BUTTON_LEFT = _sx(40)
+HOME_BUTTON_TOP = _sy(452)
+HOME_BUTTON_GAP = _ss(12)
+
+STATUS_LABEL_FONT_SIZE = _ss(9)
+STATUS_VALUE_FONT_SIZE = _ss(15)
+BUTTON_LABEL_FONT_SIZE = _ss(12)
+WINDOW_TITLE_FONT_SIZE = _ss(18)
+WINDOW_CLOSE_FONT_SIZE = _ss(18)
+WINDOW_MARGIN = _ss(19)
+WINDOW_HEADER_HEIGHT = _sy(50)
+WINDOW_HEADER_TOP_PADDING = _sy(6)
+WINDOW_TITLE_LEFT_PADDING = _sx(18)
+WINDOW_CLOSE_HALF_SIZE = _ss(13)
+WINDOW_CLOSE_OFFSET_X = _sx(24)
+WINDOW_CLOSE_OFFSET_Y = _sy(21)
+WINDOW_CLOSE_TEXT_OFFSET_Y = _sy(1)
 
 PRESS_ANIMATION_TIME = 0.18
 PRESS_SHRINK_SCALE = 0.86
@@ -179,6 +211,8 @@ class StatusBox:
     fill_color: arcade.Color = arcade.color.DARK_SLATE_GRAY
     border_color: arcade.Color = arcade.color.WHITE
     accent_color: arcade.Color = arcade.color.DARK_SEA_GREEN
+    label_size: float = STATUS_LABEL_FONT_SIZE
+    value_size: float = STATUS_VALUE_FONT_SIZE
 
     def __post_init__(self) -> None:
         self.shadow = DrawableSprite(_make_panel(self.center_x + 3, self.center_y - 3, self.width, self.height, arcade.color.BLACK, 110))
@@ -190,7 +224,7 @@ class StatusBox:
             self.center_x - self.width * 0.24,
             self.center_y + 9,
             arcade.color.LIGHT_GRAY,
-            9,
+            self.label_size,
             anchor_x="left",
             anchor_y="center",
         )
@@ -199,7 +233,7 @@ class StatusBox:
             self.center_x - self.width * 0.24,
             self.center_y - 8,
             arcade.color.WHITE,
-            15,
+            self.value_size,
             anchor_x="left",
             anchor_y="center",
         )
@@ -240,7 +274,7 @@ class HomeButton:
             center_x,
             center_y,
             arcade.color.WHITE,
-            12,
+            BUTTON_LABEL_FONT_SIZE,
             anchor_x="center",
             anchor_y="center",
         )
@@ -302,7 +336,7 @@ class HomeView(arcade.View):
         super().__init__()
         self.background_color = arcade.color.BLACK
         self.background_sprite = DrawableSprite(self._build_background_sprite())
-        self.top_bar = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, TOP_BAR_Y, SCREEN_WIDTH, 92, arcade.color.BLACK, 100))
+        self.top_bar = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, TOP_BAR_Y, SCREEN_WIDTH, _sy(92), arcade.color.BLACK, 100))
         self.side_bar = DrawableSprite(_make_panel(SIDE_BAR_X, SIDE_BAR_Y, SIDE_BAR_WIDTH, SIDE_BAR_HEIGHT, arcade.color.DARK_SLATE_GRAY, 205))
         self.content_card = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH, CONTENT_CARD_HEIGHT, arcade.color.BLACK_OLIVE, 180))
         self.content_border = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH + 4, CONTENT_CARD_HEIGHT + 4, arcade.color.WHITE, 255))
@@ -314,7 +348,7 @@ class HomeView(arcade.View):
             456,
             520,
             arcade.color.WHITE,
-            28,
+            _ss(28),
             anchor_x="center",
             anchor_y="center",
         )
@@ -323,7 +357,7 @@ class HomeView(arcade.View):
             456,
             486,
             arcade.color.LIGHT_GRAY,
-            13,
+            _ss(13),
             anchor_x="center",
             anchor_y="center",
         )
@@ -332,7 +366,7 @@ class HomeView(arcade.View):
             456,
             452,
             arcade.color.LIGHT_GRAY,
-            11,
+            _ss(11),
             anchor_x="center",
             anchor_y="center",
         )
@@ -441,9 +475,9 @@ class ComputerWindowView(arcade.View):
         self.window_width = 560
         self.window_height = 390
         self.window_x = SCREEN_WIDTH / 2
-        self.window_y = SCREEN_HEIGHT / 2 - 8
-        self.close_button_x = self.window_x + self.window_width / 2 - 24
-        self.close_button_y = self.window_y + self.window_height / 2 - 21
+        self.window_y = SCREEN_HEIGHT / 2 - _sy(8)
+        self.close_button_x = self.window_x + self.window_width / 2 - WINDOW_CLOSE_OFFSET_X
+        self.close_button_y = self.window_y + self.window_height / 2 - WINDOW_CLOSE_OFFSET_Y
 
     def on_show_view(self) -> None:
         arcade.set_background_color(arcade.color.BLACK)
@@ -455,7 +489,7 @@ class ComputerWindowView(arcade.View):
     def on_draw(self) -> None:
         self.clear()
         arcade.draw_lrbt_rectangle_filled(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT, arcade.color.BLACK)
-        arcade.draw_lrbt_rectangle_filled(19, SCREEN_WIDTH - 19, 19, SCREEN_HEIGHT - 19, arcade.color.DARK_SLATE_GRAY)
+        arcade.draw_lrbt_rectangle_filled(WINDOW_MARGIN, SCREEN_WIDTH - WINDOW_MARGIN, WINDOW_MARGIN, SCREEN_HEIGHT - WINDOW_MARGIN, arcade.color.DARK_SLATE_GRAY)
         arcade.draw_lrbt_rectangle_filled(
             self.window_x - self.window_width / 2,
             self.window_x + self.window_width / 2,
@@ -474,31 +508,31 @@ class ComputerWindowView(arcade.View):
         arcade.draw_lrbt_rectangle_filled(
             self.window_x - self.window_width / 2,
             self.window_x + self.window_width / 2,
-            self.window_y + self.window_height / 2 - 50,
-            self.window_y + self.window_height / 2 - 6,
+            self.window_y + self.window_height / 2 - WINDOW_HEADER_HEIGHT,
+            self.window_y + self.window_height / 2 - WINDOW_HEADER_TOP_PADDING,
             arcade.color.BLACK_OLIVE,
         )
         arcade.draw_text(
             self.title,
-            self.window_x - self.window_width / 2 + 18,
-            self.window_y + self.window_height / 2 - 38,
+            self.window_x - self.window_width / 2 + WINDOW_TITLE_LEFT_PADDING,
+            self.window_y + self.window_height / 2 - _sy(38),
             arcade.color.WHITE,
-            18,
+            WINDOW_TITLE_FONT_SIZE,
             anchor_y="center",
         )
         arcade.draw_lrbt_rectangle_filled(
-            self.close_button_x - 13,
-            self.close_button_x + 13,
-            self.close_button_y - 13,
-            self.close_button_y + 13,
+            self.close_button_x - WINDOW_CLOSE_HALF_SIZE,
+            self.close_button_x + WINDOW_CLOSE_HALF_SIZE,
+            self.close_button_y - WINDOW_CLOSE_HALF_SIZE,
+            self.close_button_y + WINDOW_CLOSE_HALF_SIZE,
             arcade.color.RED_ORANGE,
         )
         arcade.draw_text(
             "x",
             self.close_button_x,
-            self.close_button_y - 1,
+            self.close_button_y - WINDOW_CLOSE_TEXT_OFFSET_Y,
             arcade.color.WHITE,
-            18,
+            WINDOW_CLOSE_FONT_SIZE,
             anchor_x="center",
             anchor_y="center",
         )
@@ -508,8 +542,8 @@ class ComputerWindowView(arcade.View):
             return
 
         if (
-            abs(x - self.close_button_x) <= 13
-            and abs(y - self.close_button_y) <= 13
+            abs(x - self.close_button_x) <= WINDOW_CLOSE_HALF_SIZE
+            and abs(y - self.close_button_y) <= WINDOW_CLOSE_HALF_SIZE
         ):
             self._close()
 
