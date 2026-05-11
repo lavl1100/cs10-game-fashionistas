@@ -9,8 +9,8 @@ from typing import Callable, Optional
 
 import arcade
 
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1500
+SCREEN_HEIGHT = 900
 SCREEN_TITLE = "Fashionidísimitas"
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
