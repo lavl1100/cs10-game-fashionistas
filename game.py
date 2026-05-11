@@ -140,6 +140,9 @@ class DrawableSprite:
     def draw(self) -> None:
         self._sprite_list.draw()
 
+    def collides_with_point(self, point: tuple[float, float]) -> bool:
+        return self._sprite.collides_with_point(point)
+
     @property
     def sprite(self) -> arcade.Sprite:
         return self._sprite
