@@ -618,6 +618,9 @@ class ComputerWindowOverlay:
         )
         self.close_text.draw()
 
+    def draw(self) -> None:
+        self.on_draw()
+
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
             return False
