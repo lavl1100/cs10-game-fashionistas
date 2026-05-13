@@ -81,6 +81,13 @@ UI_FONT_NAME = "Kenney Future Narrow"
 
 arcade.load_font(UI_FONT_PATH)
 
+THEME_DEEP_PURPLE = (170, 96, 200)
+THEME_LAVENDER = (214, 154, 222)
+THEME_SOFT_LILAC = (234, 189, 230)
+THEME_PALE_PINK = (255, 221, 239)
+THEME_TEXT_PURPLE = (106, 47, 130)
+THEME_OVERLAY_ALPHA = 70
+
 PRESS_ANIMATION_TIME = 0.18
 PRESS_SHRINK_SCALE = 0.86
 
@@ -214,9 +221,9 @@ class StatusBox:
     center_y: float
     width: float = _ss(132)
     height: float = _ss(42)
-    fill_color: arcade.Color = arcade.color.DARK_SLATE_GRAY
-    border_color: arcade.Color = arcade.color.WHITE
-    accent_color: arcade.Color = arcade.color.DARK_SEA_GREEN
+    fill_color: arcade.Color = THEME_PALE_PINK
+    border_color: arcade.Color = THEME_LAVENDER
+    accent_color: arcade.Color = THEME_DEEP_PURPLE
     label_size: float = STATUS_LABEL_FONT_SIZE
     value_size: float = STATUS_VALUE_FONT_SIZE
 
@@ -229,7 +236,7 @@ class StatusBox:
             self.label.upper(),
             self.center_x - self.width * 0.24,
             self.center_y + _sy(9),
-            arcade.color.LIGHT_GRAY,
+            THEME_TEXT_PURPLE,
             self.label_size,
             font_name=UI_FONT_NAME,
             anchor_x="left",
@@ -239,7 +246,7 @@ class StatusBox:
             self.value,
             self.center_x - self.width * 0.24,
             self.center_y - _sy(8),
-            arcade.color.WHITE,
+            THEME_TEXT_PURPLE,
             self.value_size,
             font_name=UI_FONT_NAME,
             anchor_x="left",
@@ -281,7 +288,7 @@ class HomeButton:
             label.title(),
             center_x,
             center_y,
-            arcade.color.WHITE,
+            THEME_TEXT_PURPLE,
             BUTTON_LABEL_FONT_SIZE,
             font_name=UI_FONT_NAME,
             anchor_x="center",
@@ -290,7 +297,7 @@ class HomeButton:
 
     def _build_sprite(self, active: bool) -> arcade.Sprite:
         image_path = BUTTON_ACTIVE_IMAGE_PATHS.get(self.label) if active else BUTTON_IMAGE_PATHS[self.label]
-        fallback_color = arcade.color.TAN if active else arcade.color.DARK_SLATE_BLUE
+        fallback_color = THEME_LAVENDER if active else THEME_DEEP_PURPLE
         sprite = _make_sprite(image_path if image_path is not None else BUTTON_IMAGE_PATHS[self.label], self.center_x, self.center_y, HOME_BUTTON_WIDTH, HOME_BUTTON_HEIGHT, fallback_color)
         sprite.alpha = 230
         return sprite
