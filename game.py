@@ -205,6 +205,11 @@ class DrawableSprite:
     def alpha(self, value: int) -> None:
         self._sprite.alpha = value
 
+    def replace(self, sprite: arcade.Sprite) -> None:
+        self._sprite = sprite
+        self._sprite_list.clear()
+        self._sprite_list.append(sprite)
+
 @dataclass
 class StatusBox:
     """Small HUD block for money, energy, or level."""
@@ -451,7 +456,7 @@ class HomeView(arcade.View):
         for button in self.buttons:
             button.draw()
         if self.active_window is not None:
-            self.active_window.on_draw()
+            self.active_window.draw()
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
@@ -581,6 +586,9 @@ class ComputerWindowOverlay:
         self.window_x, self.window_y = self._clamp_position(center_x, center_y)
         self._sync_text_positions()
 
+    def _close(self) -> None:
+        self.on_close()
+
     def on_draw(self) -> None:
         left, right, bottom, top = self._bounds()
         header_left, header_right, header_bottom, header_top = self._header_bounds()
@@ -625,13 +633,16 @@ class ComputerWindowOverlay:
         )
         self.close_text.draw()
 
+    def draw(self) -> None:
+        self.on_draw()
+
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
             return False
 
         close_left, close_right, close_bottom, close_top = self._close_bounds()
         if close_left <= x <= close_right and close_bottom <= y <= close_top:
-            self.on_close()
+            self._close()
             return True
 
         left, right, _, top = self._bounds()
@@ -664,10 +675,10 @@ class ComputerWindowOverlay:
 
     def on_key_press(self, key: int, modifiers: int) -> None:
         if key == arcade.key.ESCAPE:
-            self.on_close()
+            self._close()
 
     def close(self) -> None:
-        self.on_close()
+        self._close()
 
 
 def main() -> None:
