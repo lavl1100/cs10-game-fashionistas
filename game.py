@@ -44,9 +44,9 @@ BUTTON_ACTIVE_IMAGE_PATHS = {
     "social media": ASSETS_DIR / "social_media_button_active.png",
 }
 
-SIDE_BAR_X = _sx(166)
+SIDE_BAR_X = _sx(64)
 SIDE_BAR_Y = _sy(300)
-SIDE_BAR_WIDTH = _sx(282)
+SIDE_BAR_WIDTH = _sx(84)
 SIDE_BAR_HEIGHT = _sy(410)
 
 TOP_BAR_Y = SCREEN_HEIGHT - _sy(34)
@@ -336,8 +336,6 @@ class HomeView(arcade.View):
         self.background_sprite = DrawableSprite(self._build_background_sprite())
         self.top_bar = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, TOP_BAR_Y, SCREEN_WIDTH, _sy(92), arcade.color.BLACK, 100))
         self.side_bar = DrawableSprite(_make_panel(SIDE_BAR_X, SIDE_BAR_Y, SIDE_BAR_WIDTH, SIDE_BAR_HEIGHT, arcade.color.DARK_SLATE_GRAY, 205))
-        self.content_card = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH, CONTENT_CARD_HEIGHT, arcade.color.BLACK_OLIVE, 180))
-        self.content_border = DrawableSprite(_make_panel(CONTENT_CARD_X, CONTENT_CARD_Y, CONTENT_CARD_WIDTH + 4, CONTENT_CARD_HEIGHT + 4, arcade.color.WHITE, 255))
         self.money_box = StatusBox("Money", "$120", _sx(410), TOP_BAR_Y)
         self.energy_box = StatusBox("Energy", "85%", _sx(558), TOP_BAR_Y)
         self.level_box = StatusBox("Level", "1", _sx(699), TOP_BAR_Y, width=_ss(108), accent_color=arcade.color.TAN)
@@ -408,8 +406,6 @@ class HomeView(arcade.View):
         self.background_sprite.draw()
         self.top_bar.draw()
         self.side_bar.draw()
-        self.content_border.draw()
-        self.content_card.draw()
         self.money_box.draw()
         self.energy_box.draw()
         self.level_box.draw()
