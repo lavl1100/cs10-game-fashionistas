@@ -524,7 +524,7 @@ class Fashionista(arcade.Window):
         btn_h   = 58
         gap     = 8
         total   = n * btn_h + (n - 1) * gap
-        start_y = my + (mh - 28 - 50 - total) // 2 + 10
+        start_y = my + mh - 70 - total
 
         for i, pt in enumerate(self.post_types):
             S   = f"cb{i}"
@@ -597,7 +597,7 @@ class Fashionista(arcade.Window):
         n       = len(self.post_types)
         btn_h, gap = 58, 8
         total   = n * btn_h + (n - 1) * gap
-        start_y = my + (mh - 28 - 50 - total) // 2 + 10
+        start_y = my + mh - 70 - total
         for i in range(n):
             bx = mx + 18; bw = mw - 36
             by = start_y + (n - 1 - i) * (btn_h + gap)
