@@ -76,6 +76,7 @@ WINDOW_CLOSE_HALF_SIZE = _ss(13)
 WINDOW_CLOSE_OFFSET_X = _sx(24)
 WINDOW_CLOSE_OFFSET_Y = _sy(21)
 WINDOW_CLOSE_TEXT_OFFSET_Y = _sy(1)
+UI_FONT_NAME = ("Kenny Future Square", "calibri", "arial")
 
 PRESS_ANIMATION_TIME = 0.18
 PRESS_SHRINK_SCALE = 0.86
@@ -227,6 +228,7 @@ class StatusBox:
             self.center_y + _sy(9),
             arcade.color.LIGHT_GRAY,
             self.label_size,
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -236,6 +238,7 @@ class StatusBox:
             self.center_y - _sy(8),
             arcade.color.WHITE,
             self.value_size,
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -277,6 +280,7 @@ class HomeButton:
             center_y,
             arcade.color.WHITE,
             BUTTON_LABEL_FONT_SIZE,
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -346,6 +350,7 @@ class HomeView(arcade.View):
             TOP_CLOCK_DATE_Y,
             arcade.color.LIGHT_GRAY,
             _ss(14),
+            font_name=UI_FONT_NAME,
             anchor_x="right",
             anchor_y="center",
         )
@@ -355,6 +360,7 @@ class HomeView(arcade.View):
             TOP_CLOCK_TIME_Y,
             arcade.color.WHITE,
             _ss(18),
+            font_name=UI_FONT_NAME,
             anchor_x="right",
             anchor_y="center",
         )
@@ -507,6 +513,7 @@ class ComputerWindowOverlay:
             self.window_y + self.window_height / 2 - _sy(38),
             arcade.color.WHITE,
             WINDOW_TITLE_FONT_SIZE,
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -516,6 +523,7 @@ class ComputerWindowOverlay:
             self.window_y + self.window_height / 2 - WINDOW_CLOSE_OFFSET_Y - WINDOW_CLOSE_TEXT_OFFSET_Y,
             arcade.color.WHITE,
             WINDOW_CLOSE_FONT_SIZE,
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
