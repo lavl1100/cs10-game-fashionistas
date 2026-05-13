@@ -340,12 +340,13 @@ class DrawableSprite:
 class StatusBox:
     """Small HUD block for money, energy, or level."""
 
+    layout: GameLayout
     label: str
     value: str
     center_x: float
     center_y: float
-    width: float = _ss(132)
-    height: float = _ss(42)
+    width: float = 132
+    height: float = 42
     fill_color: arcade.Color = THEME_PALE_PINK
     border_color: arcade.Color = THEME_LAVENDER
     accent_color: arcade.Color = THEME_DEEP_PURPLE
@@ -353,30 +354,87 @@ class StatusBox:
     value_size: float = STATUS_VALUE_FONT_SIZE
 
     def __post_init__(self) -> None:
-        self.shadow = DrawableSprite(_make_panel(self.center_x + _ss(3), self.center_y - _ss(3), self.width, self.height, THEME_DEEP_PURPLE, 110))
-        self.border = DrawableSprite(_make_panel(self.center_x, self.center_y, self.width + _ss(4), self.height + _ss(4), self.border_color, 255))
+        self._build_visuals()
+
+    def _build_visuals(self) -> None:
+        self.shadow = DrawableSprite(
+            _make_panel(
+                self.center_x + self.layout.ss(3),
+                self.center_y - self.layout.ss(3),
+                self.width,
+                self.height,
+                THEME_DEEP_PURPLE,
+                110,
+            )
+        )
+        self.border = DrawableSprite(
+            _make_panel(
+                self.center_x,
+                self.center_y,
+                self.width + self.layout.ss(4),
+                self.height + self.layout.ss(4),
+                self.border_color,
+                255,
+            )
+        )
         self.panel = DrawableSprite(_make_panel(self.center_x, self.center_y, self.width, self.height, self.fill_color, 220))
-        self.accent = DrawableSprite(_make_panel(self.center_x - self.width * 0.36, self.center_y, _ss(4), self.height - _ss(10), self.accent_color, 255))
-        self.label_text = arcade.Text(
-            self.label.upper(),
-            self.center_x - self.width * 0.24,
-            self.center_y + _sy(9),
-            THEME_TEXT_PURPLE,
-            self.label_size,
-            font_name=UI_FONT_NAME,
-            anchor_x="left",
-            anchor_y="center",
+        self.accent = DrawableSprite(
+            _make_panel(
+                self.center_x - self.width * 0.36,
+                self.center_y,
+                self.layout.ss(4),
+                self.height - self.layout.ss(10),
+                self.accent_color,
+                255,
+            )
         )
-        self.value_text = arcade.Text(
-            self.value,
-            self.center_x - self.width * 0.24,
-            self.center_y - _sy(8),
-            THEME_TEXT_PURPLE,
-            self.value_size,
-            font_name=UI_FONT_NAME,
-            anchor_x="left",
-            anchor_y="center",
-        )
+        if not hasattr(self, "label_text"):
+            self.label_text = arcade.Text(
+                self.label.upper(),
+                self.center_x - self.width * 0.24,
+                self.center_y + self.layout.sy(9),
+                THEME_TEXT_PURPLE,
+                self.label_size,
+                font_name=UI_FONT_NAME,
+                anchor_x="left",
+                anchor_y="center",
+            )
+            self.value_text = arcade.Text(
+                self.value,
+                self.center_x - self.width * 0.24,
+                self.center_y - self.layout.sy(8),
+                THEME_TEXT_PURPLE,
+                self.value_size,
+                font_name=UI_FONT_NAME,
+                anchor_x="left",
+                anchor_y="center",
+            )
+        else:
+            self.label_text.x = self.center_x - self.width * 0.24
+            self.label_text.y = self.center_y + self.layout.sy(9)
+            self.label_text.font_size = self.label_size
+            self.value_text.x = self.center_x - self.width * 0.24
+            self.value_text.y = self.center_y - self.layout.sy(8)
+            self.value_text.font_size = self.value_size
+
+    def update_layout(
+        self,
+        layout: GameLayout,
+        center_x: float,
+        center_y: float,
+        width: float,
+        height: float,
+        label_size: float,
+        value_size: float,
+    ) -> None:
+        self.layout = layout
+        self.center_x = center_x
+        self.center_y = center_y
+        self.width = width
+        self.height = height
+        self.label_size = label_size
+        self.value_size = value_size
+        self._build_visuals()
 
     def draw(self) -> None:
         self.shadow.draw()
@@ -392,12 +450,14 @@ class HomeButton:
 
     def __init__(
         self,
+        layout: GameLayout,
         label: str,
         center_x: float,
         center_y: float,
         on_activate: Callable[[], None],
         active: bool = False,
     ) -> None:
+        self.layout = layout
         self.label = label
         self.center_x = center_x
         self.center_y = center_y
@@ -405,6 +465,7 @@ class HomeButton:
         self.press_started_at: Optional[float] = None
         self.pending_activation = False
         self.current_scale = 1.0
+        self.is_active = active
         self.normal_sprite = DrawableSprite(self._build_sprite(active=False))
         self.active_sprite = DrawableSprite(self._build_sprite(active=True))
         self.sprite = self.active_sprite if active else self.normal_sprite
@@ -414,20 +475,44 @@ class HomeButton:
             center_x,
             center_y,
             THEME_TEXT_PURPLE,
-            BUTTON_LABEL_FONT_SIZE,
+            self.layout.button_label_font_size,
             font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
+        self.update_layout(layout, center_x, center_y)
 
     def _build_sprite(self, active: bool) -> arcade.Sprite:
         image_path = BUTTON_ACTIVE_IMAGE_PATHS.get(self.label) if active else BUTTON_IMAGE_PATHS[self.label]
         fallback_color = THEME_LAVENDER if active else THEME_DEEP_PURPLE
-        sprite = _make_sprite(image_path if image_path is not None else BUTTON_IMAGE_PATHS[self.label], self.center_x, self.center_y, HOME_BUTTON_WIDTH, HOME_BUTTON_HEIGHT, fallback_color)
+        sprite = _make_sprite(
+            image_path if image_path is not None else BUTTON_IMAGE_PATHS[self.label],
+            self.center_x,
+            self.center_y,
+            self.layout.home_button_width,
+            self.layout.home_button_height,
+            fallback_color,
+        )
         sprite.alpha = 230
         return sprite
 
+    def update_layout(self, layout: GameLayout, center_x: float, center_y: float) -> None:
+        self.layout = layout
+        self.center_x = center_x
+        self.center_y = center_y
+        for sprite in (self.normal_sprite, self.active_sprite):
+            sprite.center_x = center_x
+            sprite.center_y = center_y
+            sprite.width = layout.home_button_width
+            sprite.height = layout.home_button_height
+            sprite.scale = self.current_scale
+        self.sprite = self.active_sprite if self.is_active else self.normal_sprite
+        self.text.x = center_x
+        self.text.y = center_y
+        self.text.font_size = max(11, int(layout.button_label_font_size * self.current_scale))
+
     def set_active(self, is_active: bool) -> None:
+        self.is_active = is_active
         self.sprite = self.active_sprite if is_active else self.normal_sprite
         self.sprite.center_x = self.center_x
         self.sprite.center_y = self.center_y
@@ -463,7 +548,7 @@ class HomeButton:
     def draw(self) -> None:
         self.sprite.draw()
         if self.show_label:
-            self.text.font_size = max(11, int(BUTTON_LABEL_FONT_SIZE * self.current_scale))
+            self.text.font_size = max(11, int(self.layout.button_label_font_size * self.current_scale))
             self.text.draw()
 
 
