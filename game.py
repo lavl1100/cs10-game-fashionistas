@@ -58,8 +58,8 @@ CONTENT_CARD_Y = _sy(275)
 CONTENT_CARD_WIDTH = _sx(382)
 CONTENT_CARD_HEIGHT = _sy(316)
 
-HOME_BUTTON_WIDTH = _ss(72)
-HOME_BUTTON_HEIGHT = _ss(72)
+HOME_BUTTON_WIDTH = _ss(60)
+HOME_BUTTON_HEIGHT = _ss(60)
 HOME_BUTTON_LEFT = _sx(40)
 HOME_BUTTON_TOP = _sy(452)
 HOME_BUTTON_GAP = _ss(50)
@@ -400,6 +400,10 @@ class HomeView(arcade.View):
 
     def _make_open_action(self, label: str) -> Callable[[], None]:
         def open_window() -> None:
+            if self.active_window is not None and self.active_window.title == label.title():
+                window = self.active_window
+                self._pending_action = window.close
+                return
             self._pending_action = lambda: self._open_window(label)
 
         return open_window
