@@ -50,6 +50,8 @@ SIDE_BAR_WIDTH = _sx(84)
 SIDE_BAR_HEIGHT = _sy(410)
 
 TOP_BAR_Y = SCREEN_HEIGHT - _sy(34)
+TOP_HUD_LEFT = _sx(220)
+TOP_HUD_GAP = _sx(150)
 
 HOME_BUTTON_WIDTH = _ss(60)
 HOME_BUTTON_HEIGHT = _ss(60)
@@ -331,9 +333,9 @@ class HomeView(arcade.View):
         self.background_sprite = DrawableSprite(self._build_background_sprite())
         self.top_bar = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, TOP_BAR_Y, SCREEN_WIDTH, _sy(92), arcade.color.BLACK, 100))
         self.side_bar = DrawableSprite(_make_panel(SIDE_BAR_X, SIDE_BAR_Y, SIDE_BAR_WIDTH, SIDE_BAR_HEIGHT, arcade.color.DARK_SLATE_GRAY, 205))
-        self.money_box = StatusBox("Money", "$120", _sx(410), TOP_BAR_Y)
-        self.energy_box = StatusBox("Energy", "85%", _sx(558), TOP_BAR_Y)
-        self.level_box = StatusBox("Level", "1", _sx(699), TOP_BAR_Y, width=_ss(108), accent_color=arcade.color.TAN)
+        self.money_box = StatusBox("Money", "$120", TOP_HUD_LEFT, TOP_BAR_Y)
+        self.energy_box = StatusBox("Energy", "85%", TOP_HUD_LEFT + TOP_HUD_GAP, TOP_BAR_Y)
+        self.level_box = StatusBox("Level", "1", TOP_HUD_LEFT + TOP_HUD_GAP * 2, TOP_BAR_Y, width=_ss(108), accent_color=arcade.color.TAN)
         self.buttons: list[HomeButton] = []
         self.active_window: Optional[ComputerWindowOverlay] = None
         self._pending_action: Optional[Callable[[], None]] = None
