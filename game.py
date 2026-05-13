@@ -557,30 +557,31 @@ class HomeView(arcade.View):
 
     def __init__(self) -> None:
         super().__init__()
+        self.layout = GameLayout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
         self.background_color = THEME_DEEP_PURPLE
-        self.background_sprite = DrawableSprite(self._build_background_sprite())
-        self.theme_overlay = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT, THEME_SOFT_LILAC, THEME_OVERLAY_ALPHA))
-        self.top_bar = DrawableSprite(_make_panel(SCREEN_WIDTH / 2, TOP_BAR_Y, SCREEN_WIDTH, _sy(92), THEME_LAVENDER, 120))
-        self.side_bar = DrawableSprite(_make_panel(SIDE_BAR_X, SIDE_BAR_Y, SIDE_BAR_WIDTH, SIDE_BAR_HEIGHT, THEME_LAVENDER, 220))
-        self.money_box = StatusBox("Money", "$120", TOP_HUD_LEFT, TOP_BAR_Y)
-        self.energy_box = StatusBox("Energy", "85%", TOP_HUD_LEFT + TOP_HUD_GAP, TOP_BAR_Y)
-        self.level_box = StatusBox("Level", "1", TOP_HUD_LEFT + TOP_HUD_GAP * 2, TOP_BAR_Y, width=_ss(108), accent_color=THEME_DEEP_PURPLE)
+        self.background_sprite = DrawableSprite(self._build_background_sprite(self.layout))
+        self.theme_overlay = DrawableSprite(_make_panel(self.layout.width / 2, self.layout.height / 2, self.layout.width, self.layout.height, THEME_SOFT_LILAC, THEME_OVERLAY_ALPHA))
+        self.top_bar = DrawableSprite(_make_panel(self.layout.width / 2, self.layout.top_bar_y, self.layout.width, self.layout.sy(92), THEME_LAVENDER, 120))
+        self.side_bar = DrawableSprite(_make_panel(self.layout.side_bar_x, self.layout.side_bar_y, self.layout.side_bar_width, self.layout.side_bar_height, THEME_LAVENDER, 220))
+        self.money_box = StatusBox(self.layout, "Money", "$120", self.layout.top_hud_left, self.layout.top_bar_y, width=self.layout.ss(132), height=self.layout.ss(42), label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
+        self.energy_box = StatusBox(self.layout, "Energy", "85%", self.layout.top_hud_left + self.layout.top_hud_gap, self.layout.top_bar_y, width=self.layout.ss(132), height=self.layout.ss(42), label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
+        self.level_box = StatusBox(self.layout, "Level", "1", self.layout.top_hud_left + self.layout.top_hud_gap * 2, self.layout.top_bar_y, width=self.layout.ss(108), height=self.layout.ss(42), accent_color=THEME_DEEP_PURPLE, label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
         self.date_text = arcade.Text(
             "",
-            TOP_CLOCK_RIGHT,
-            TOP_CLOCK_DATE_Y,
+            self.layout.top_clock_right,
+            self.layout.top_clock_date_y,
             THEME_TEXT_PURPLE,
-            _ss(14),
+            self.layout.ss(14),
             font_name=UI_FONT_NAME,
             anchor_x="right",
             anchor_y="center",
         )
         self.time_text = arcade.Text(
             "",
-            TOP_CLOCK_RIGHT,
-            TOP_CLOCK_TIME_Y,
+            self.layout.top_clock_right,
+            self.layout.top_clock_time_y,
             THEME_TEXT_PURPLE,
-            _ss(18),
+            self.layout.ss(18),
             font_name=UI_FONT_NAME,
             anchor_x="right",
             anchor_y="center",
@@ -590,14 +591,15 @@ class HomeView(arcade.View):
         self._pending_action: Optional[Callable[[], None]] = None
         self._build_buttons()
         self._sync_clock_text()
+        self._apply_layout(self.layout)
 
-    def _build_background_sprite(self) -> arcade.Sprite:
+    def _build_background_sprite(self, layout: GameLayout) -> arcade.Sprite:
         return _make_sprite(
             BACKGROUND_IMAGE,
-            SCREEN_WIDTH / 2,
-            SCREEN_HEIGHT / 2,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT,
+            layout.width / 2,
+            layout.height / 2,
+            layout.width,
+            layout.height,
             THEME_DEEP_PURPLE,
         )
 
@@ -615,9 +617,73 @@ class HomeView(arcade.View):
             "activity center",
         ]
         for index, label in enumerate(labels):
-            center_y = HOME_BUTTON_TOP - index * (HOME_BUTTON_HEIGHT + HOME_BUTTON_GAP)
-            button = HomeButton(label, HOME_BUTTON_LEFT + HOME_BUTTON_WIDTH / 2, center_y, self._make_open_action(label))
+            center_y = self.layout.home_button_top - index * (self.layout.home_button_height + self.layout.home_button_gap)
+            button = HomeButton(
+                self.layout,
+                label,
+                self.layout.home_button_left + self.layout.home_button_width / 2,
+                center_y,
+                self._make_open_action(label),
+            )
             self.buttons.append(button)
+
+    def _apply_layout(self, layout: GameLayout) -> None:
+        self.layout = layout
+        self.background_sprite.center_x = layout.width / 2
+        self.background_sprite.center_y = layout.height / 2
+        self.background_sprite.width = layout.width
+        self.background_sprite.height = layout.height
+        self.theme_overlay.center_x = layout.width / 2
+        self.theme_overlay.center_y = layout.height / 2
+        self.theme_overlay.width = layout.width
+        self.theme_overlay.height = layout.height
+        self.top_bar.center_x = layout.width / 2
+        self.top_bar.center_y = layout.top_bar_y
+        self.top_bar.width = layout.width
+        self.top_bar.height = layout.sy(92)
+        self.side_bar.center_x = layout.side_bar_x
+        self.side_bar.center_y = layout.side_bar_y
+        self.side_bar.width = layout.side_bar_width
+        self.side_bar.height = layout.side_bar_height
+        self.money_box.update_layout(
+            layout,
+            layout.top_hud_left,
+            layout.top_bar_y,
+            layout.ss(132),
+            layout.ss(42),
+            layout.status_label_font_size,
+            layout.status_value_font_size,
+        )
+        self.energy_box.update_layout(
+            layout,
+            layout.top_hud_left + layout.top_hud_gap,
+            layout.top_bar_y,
+            layout.ss(132),
+            layout.ss(42),
+            layout.status_label_font_size,
+            layout.status_value_font_size,
+        )
+        self.level_box.update_layout(
+            layout,
+            layout.top_hud_left + layout.top_hud_gap * 2,
+            layout.top_bar_y,
+            layout.ss(108),
+            layout.ss(42),
+            layout.status_label_font_size,
+            layout.status_value_font_size,
+        )
+        self.date_text.x = layout.top_clock_right
+        self.date_text.y = layout.top_clock_date_y
+        self.date_text.font_size = layout.ss(14)
+        self.time_text.x = layout.top_clock_right
+        self.time_text.y = layout.top_clock_time_y
+        self.time_text.font_size = layout.ss(18)
+        button_left = layout.home_button_left + layout.home_button_width / 2
+        for index, button in enumerate(self.buttons):
+            center_y = layout.home_button_top - index * (layout.home_button_height + layout.home_button_gap)
+            button.update_layout(layout, button_left, center_y)
+        if self.active_window is not None:
+            self.active_window.update_layout(layout)
 
     def _make_open_action(self, label: str) -> Callable[[], None]:
         def open_window() -> None:
@@ -635,6 +701,7 @@ class HomeView(arcade.View):
         if label == "social media":
             self._set_button_active(label, True)
         self.active_window = ComputerWindowOverlay(
+            self.layout,
             title=label.title(),
             on_close=lambda: self._close_window(label),
         )
@@ -652,6 +719,8 @@ class HomeView(arcade.View):
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
+        if self.window is not None:
+            self._apply_layout(GameLayout(self.window.width, self.window.height))
 
     def on_draw(self) -> None:
         self.clear()
@@ -715,41 +784,45 @@ class HomeView(arcade.View):
         if key == arcade.key.ESCAPE and self.active_window is not None:
             self.active_window.close()
 
+    def on_resize(self, width: float, height: float) -> None:
+        self._apply_layout(GameLayout(width, height))
+
 
 class ComputerWindowOverlay:
     """A draggable computer-style window drawn on top of the home screen."""
 
-    def __init__(self, title: str, on_close: Callable[[], None]) -> None:
+    def __init__(self, layout: GameLayout, title: str, on_close: Callable[[], None]) -> None:
+        self.layout = layout
         self.title = title
         self.on_close = on_close
-        self.window_width = _sx(560)
-        self.window_height = _sy(390)
-        self.window_x = SCREEN_WIDTH / 2
-        self.window_y = SCREEN_HEIGHT / 2 - _sy(8)
+        self.window_width = 0.0
+        self.window_height = 0.0
+        self.window_x = 0.0
+        self.window_y = 0.0
         self.is_dragging = False
         self.drag_offset_x = 0.0
         self.drag_offset_y = 0.0
         self.title_text = arcade.Text(
             self.title,
-            self.window_x - self.window_width / 2 + WINDOW_TITLE_LEFT_PADDING,
-            self.window_y + self.window_height / 2 - _sy(38),
+            0,
+            0,
             THEME_TEXT_PURPLE,
-            WINDOW_TITLE_FONT_SIZE,
+            layout.window_title_font_size,
             font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
         self.close_text = arcade.Text(
             "x",
-            self.window_x + self.window_width / 2 - WINDOW_CLOSE_OFFSET_X,
-            self.window_y + self.window_height / 2 - WINDOW_CLOSE_OFFSET_Y - WINDOW_CLOSE_TEXT_OFFSET_Y,
+            0,
+            0,
             THEME_TEXT_PURPLE,
-            WINDOW_CLOSE_FONT_SIZE,
+            layout.window_close_font_size,
             font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
-        self._sync_text_positions()
+        self.update_layout(layout)
 
     def _bounds(self) -> tuple[float, float, float, float]:
         left = self.window_x - self.window_width / 2
@@ -760,34 +833,42 @@ class ComputerWindowOverlay:
 
     def _header_bounds(self) -> tuple[float, float, float, float]:
         left, right, _, top = self._bounds()
-        return left, right, top - WINDOW_HEADER_HEIGHT, top - WINDOW_HEADER_TOP_PADDING
+        return left, right, top - self.layout.window_header_height, top - self.layout.window_header_top_padding
 
     def _close_bounds(self) -> tuple[float, float, float, float]:
         _, right, _, top = self._bounds()
-        center_x = right - WINDOW_CLOSE_OFFSET_X
-        center_y = top - WINDOW_CLOSE_OFFSET_Y
+        center_x = right - self.layout.window_close_offset_x
+        center_y = top - self.layout.window_close_offset_y
         return (
-            center_x - WINDOW_CLOSE_HALF_SIZE,
-            center_x + WINDOW_CLOSE_HALF_SIZE,
-            center_y - WINDOW_CLOSE_HALF_SIZE,
-            center_y + WINDOW_CLOSE_HALF_SIZE,
+            center_x - self.layout.window_close_half_size,
+            center_x + self.layout.window_close_half_size,
+            center_y - self.layout.window_close_half_size,
+            center_y + self.layout.window_close_half_size,
         )
 
     def _sync_text_positions(self) -> None:
         left, right, _, top = self._bounds()
         close_left, close_right, close_bottom, close_top = self._close_bounds()
-        self.title_text.x = left + WINDOW_TITLE_LEFT_PADDING
-        self.title_text.y = top - _sy(38)
+        self.title_text.x = left + self.layout.window_title_left_padding
+        self.title_text.y = top - self.layout.sy(38)
         self.close_text.x = (close_left + close_right) / 2
-        self.close_text.y = (close_bottom + close_top) / 2 - WINDOW_CLOSE_TEXT_OFFSET_Y
+        self.close_text.y = (close_bottom + close_top) / 2 - self.layout.window_close_text_offset_y
+
+    def update_layout(self, layout: GameLayout) -> None:
+        self.layout = layout
+        self.window_width = max(layout.ss(240), min(layout.sx(560), layout.width - layout.window_margin * 2))
+        self.window_height = max(layout.ss(180), min(layout.sy(390), layout.height - layout.window_margin * 2))
+        self._set_center(layout.width / 2, layout.height / 2 - layout.sy(8))
+        self.title_text.font_size = layout.window_title_font_size
+        self.close_text.font_size = layout.window_close_font_size
 
     def _clamp_position(self, center_x: float, center_y: float) -> tuple[float, float]:
         half_width = self.window_width / 2
         half_height = self.window_height / 2
-        min_x = half_width + WINDOW_MARGIN
-        max_x = SCREEN_WIDTH - half_width - WINDOW_MARGIN
-        min_y = half_height + WINDOW_MARGIN
-        max_y = SCREEN_HEIGHT - half_height - WINDOW_MARGIN
+        min_x = half_width + self.layout.window_margin
+        max_x = self.layout.width - half_width - self.layout.window_margin
+        min_y = half_height + self.layout.window_margin
+        max_y = self.layout.height - half_height - self.layout.window_margin
         return (
             max(min_x, min(center_x, max_x)),
             max(min_y, min(center_y, max_y)),
@@ -804,7 +885,7 @@ class ComputerWindowOverlay:
         left, right, bottom, top = self._bounds()
         header_left, header_right, header_bottom, header_top = self._header_bounds()
         close_left, close_right, close_bottom, close_top = self._close_bounds()
-        shadow_offset = _ss(5)
+        shadow_offset = self.layout.ss(5)
         arcade.draw_lrbt_rectangle_filled(
             left + shadow_offset,
             right + shadow_offset,
@@ -891,10 +972,20 @@ class ComputerWindowOverlay:
     def close(self) -> None:
         self._close()
 
+    def on_resize(self, width: float, height: float) -> None:
+        self.update_layout(GameLayout(width, height))
+
 
 def main() -> None:
     """Start the game window."""
-    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
+    display_width, display_height = arcade.get_display_size()
+    window = arcade.Window(
+        min(DEFAULT_WINDOW_WIDTH, display_width),
+        min(DEFAULT_WINDOW_HEIGHT, display_height),
+        SCREEN_TITLE,
+        resizable=True,
+        center_window=True,
+    )
     window.show_view(HomeView())
     arcade.run()
 
