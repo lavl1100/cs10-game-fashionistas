@@ -10,25 +10,9 @@ import arcade
 
 BASE_SCREEN_WIDTH = 800
 BASE_SCREEN_HEIGHT = 600
-SCREEN_WIDTH = 1500
-SCREEN_HEIGHT = 900
+DEFAULT_WINDOW_WIDTH = 1280
+DEFAULT_WINDOW_HEIGHT = 720
 SCREEN_TITLE = "Fashion Influencer Life"
-
-SCALE_X = SCREEN_WIDTH / BASE_SCREEN_WIDTH
-SCALE_Y = SCREEN_HEIGHT / BASE_SCREEN_HEIGHT
-UI_SCALE = min(SCALE_X, SCALE_Y)
-
-
-def _sx(value: float) -> float:
-    return value * SCALE_X
-
-
-def _sy(value: float) -> float:
-    return value * SCALE_Y
-
-
-def _ss(value: float) -> float:
-    return value * UI_SCALE
 
 ASSETS_DIR = Path(__file__).resolve().parent / "assets"
 BACKGROUND_IMAGE = ASSETS_DIR / "home_background.png"
@@ -45,37 +29,38 @@ BUTTON_ACTIVE_IMAGE_PATHS = {
     "social media": ASSETS_DIR / "social_media_button_active.png",
 }
 
-SIDE_BAR_X = _sx(64)
-SIDE_BAR_Y = _sy(270)
-SIDE_BAR_WIDTH = _sx(84)
-SIDE_BAR_HEIGHT = _sy(450)
+# Base layout values expressed in the original 800x600 design space.
+SIDE_BAR_X = 64
+SIDE_BAR_Y = 270
+SIDE_BAR_WIDTH = 84
+SIDE_BAR_HEIGHT = 450
 
-TOP_BAR_Y = SCREEN_HEIGHT - _sy(33)
-TOP_HUD_LEFT = _sx(70)
-TOP_HUD_GAP = _sx(120)
-TOP_CLOCK_RIGHT = SCREEN_WIDTH - _sx(34)
-TOP_CLOCK_DATE_Y = TOP_BAR_Y + _sy(10)
-TOP_CLOCK_TIME_Y = TOP_BAR_Y - _sy(12)
+TOP_BAR_Y = 567
+TOP_HUD_LEFT = 70
+TOP_HUD_GAP = 120
+TOP_CLOCK_RIGHT = 1466
+TOP_CLOCK_DATE_Y = 577
+TOP_CLOCK_TIME_Y = 555
 
-HOME_BUTTON_WIDTH = _ss(60)
-HOME_BUTTON_HEIGHT = _ss(60)
-HOME_BUTTON_LEFT = _sx(40)
-HOME_BUTTON_TOP = _sy(448)
-HOME_BUTTON_GAP = _ss(30)
+HOME_BUTTON_WIDTH = 60
+HOME_BUTTON_HEIGHT = 60
+HOME_BUTTON_LEFT = 40
+HOME_BUTTON_TOP = 448
+HOME_BUTTON_GAP = 30
 
-STATUS_LABEL_FONT_SIZE = _ss(9)
-STATUS_VALUE_FONT_SIZE = _ss(15)
-BUTTON_LABEL_FONT_SIZE = _ss(12)
-WINDOW_TITLE_FONT_SIZE = _ss(18)
-WINDOW_CLOSE_FONT_SIZE = _ss(18)
-WINDOW_MARGIN = _ss(19)
-WINDOW_HEADER_HEIGHT = _sy(50)
-WINDOW_HEADER_TOP_PADDING = _sy(6)
-WINDOW_TITLE_LEFT_PADDING = _sx(18)
-WINDOW_CLOSE_HALF_SIZE = _ss(13)
-WINDOW_CLOSE_OFFSET_X = _sx(24)
-WINDOW_CLOSE_OFFSET_Y = _sy(21)
-WINDOW_CLOSE_TEXT_OFFSET_Y = _sy(1)
+STATUS_LABEL_FONT_SIZE = 9
+STATUS_VALUE_FONT_SIZE = 15
+BUTTON_LABEL_FONT_SIZE = 12
+WINDOW_TITLE_FONT_SIZE = 18
+WINDOW_CLOSE_FONT_SIZE = 18
+WINDOW_MARGIN = 19
+WINDOW_HEADER_HEIGHT = 50
+WINDOW_HEADER_TOP_PADDING = 6
+WINDOW_TITLE_LEFT_PADDING = 18
+WINDOW_CLOSE_HALF_SIZE = 13
+WINDOW_CLOSE_OFFSET_X = 24
+WINDOW_CLOSE_OFFSET_Y = 21
+WINDOW_CLOSE_TEXT_OFFSET_Y = 1
 UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
 UI_FONT_NAME = "Kenney Future Narrow"
 
@@ -90,6 +75,147 @@ THEME_OVERLAY_ALPHA = 70
 
 PRESS_ANIMATION_TIME = 0.18
 PRESS_SHRINK_SCALE = 0.86
+
+
+@dataclass(frozen=True)
+class GameLayout:
+    """Scaled coordinates and sizes for the current window."""
+
+    width: float
+    height: float
+
+    @property
+    def scale_x(self) -> float:
+        return self.width / BASE_SCREEN_WIDTH
+
+    @property
+    def scale_y(self) -> float:
+        return self.height / BASE_SCREEN_HEIGHT
+
+    @property
+    def ui_scale(self) -> float:
+        return min(self.scale_x, self.scale_y)
+
+    def sx(self, value: float) -> float:
+        return value * self.scale_x
+
+    def sy(self, value: float) -> float:
+        return value * self.scale_y
+
+    def ss(self, value: float) -> float:
+        return value * self.ui_scale
+
+    @property
+    def side_bar_x(self) -> float:
+        return self.sx(SIDE_BAR_X)
+
+    @property
+    def side_bar_y(self) -> float:
+        return self.sy(SIDE_BAR_Y)
+
+    @property
+    def side_bar_width(self) -> float:
+        return self.sx(SIDE_BAR_WIDTH)
+
+    @property
+    def side_bar_height(self) -> float:
+        return self.sy(SIDE_BAR_HEIGHT)
+
+    @property
+    def top_bar_y(self) -> float:
+        return self.height - self.sy(33)
+
+    @property
+    def top_hud_left(self) -> float:
+        return self.sx(TOP_HUD_LEFT)
+
+    @property
+    def top_hud_gap(self) -> float:
+        return self.sx(TOP_HUD_GAP)
+
+    @property
+    def top_clock_right(self) -> float:
+        return self.width - self.sx(34)
+
+    @property
+    def top_clock_date_y(self) -> float:
+        return self.top_bar_y + self.sy(10)
+
+    @property
+    def top_clock_time_y(self) -> float:
+        return self.top_bar_y - self.sy(12)
+
+    @property
+    def home_button_width(self) -> float:
+        return self.ss(HOME_BUTTON_WIDTH)
+
+    @property
+    def home_button_height(self) -> float:
+        return self.ss(HOME_BUTTON_HEIGHT)
+
+    @property
+    def home_button_left(self) -> float:
+        return self.sx(HOME_BUTTON_LEFT)
+
+    @property
+    def home_button_top(self) -> float:
+        return self.sy(HOME_BUTTON_TOP)
+
+    @property
+    def home_button_gap(self) -> float:
+        return self.ss(HOME_BUTTON_GAP)
+
+    @property
+    def status_label_font_size(self) -> float:
+        return self.ss(STATUS_LABEL_FONT_SIZE)
+
+    @property
+    def status_value_font_size(self) -> float:
+        return self.ss(STATUS_VALUE_FONT_SIZE)
+
+    @property
+    def button_label_font_size(self) -> float:
+        return self.ss(BUTTON_LABEL_FONT_SIZE)
+
+    @property
+    def window_title_font_size(self) -> float:
+        return self.ss(WINDOW_TITLE_FONT_SIZE)
+
+    @property
+    def window_close_font_size(self) -> float:
+        return self.ss(WINDOW_CLOSE_FONT_SIZE)
+
+    @property
+    def window_margin(self) -> float:
+        return self.ss(WINDOW_MARGIN)
+
+    @property
+    def window_header_height(self) -> float:
+        return self.sy(WINDOW_HEADER_HEIGHT)
+
+    @property
+    def window_header_top_padding(self) -> float:
+        return self.sy(WINDOW_HEADER_TOP_PADDING)
+
+    @property
+    def window_title_left_padding(self) -> float:
+        return self.sx(WINDOW_TITLE_LEFT_PADDING)
+
+    @property
+    def window_close_half_size(self) -> float:
+        return self.ss(WINDOW_CLOSE_HALF_SIZE)
+
+    @property
+    def window_close_offset_x(self) -> float:
+        return self.sx(WINDOW_CLOSE_OFFSET_X)
+
+    @property
+    def window_close_offset_y(self) -> float:
+        return self.sy(WINDOW_CLOSE_OFFSET_Y)
+
+    @property
+    def window_close_text_offset_y(self) -> float:
+        return self.sy(WINDOW_CLOSE_TEXT_OFFSET_Y)
 
 
 def _current_time() -> float:
