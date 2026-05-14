@@ -572,6 +572,16 @@ class HomeButton:
         )
         self.update_layout(layout, center_x, center_y)
 
+    def _bounds(self) -> tuple[float, float, float, float]:
+        half_width = self.layout.home_button_width * self.current_scale / 2
+        half_height = self.layout.home_button_height * self.current_scale / 2
+        return (
+            self.center_x - half_width,
+            self.center_x + half_width,
+            self.center_y - half_height,
+            self.center_y + half_height,
+        )
+
     def _build_sprite(self, active: bool) -> arcade.Sprite:
         image_path = BUTTON_ACTIVE_IMAGE_PATHS.get(self.label) if active else BUTTON_IMAGE_PATHS[self.label]
         fallback_color = THEME_LAVENDER if active else THEME_DEEP_PURPLE
@@ -604,12 +614,14 @@ class HomeButton:
     def set_active(self, is_active: bool) -> None:
         self.is_active = is_active
         self.sprite = self.active_sprite if is_active else self.normal_sprite
-        self.sprite.center_x = self.center_x
-        self.sprite.center_y = self.center_y
-        self.sprite.scale = self.current_scale
+        for sprite in (self.normal_sprite, self.active_sprite):
+            sprite.center_x = self.center_x
+            sprite.center_y = self.center_y
+            sprite.scale = self.current_scale
 
     def hit_test(self, x: float, y: float) -> bool:
-        return self.sprite.collides_with_point((x, y))
+        left, right, bottom, top = self._bounds()
+        return left <= x <= right and bottom <= y <= top
 
     def press(self, now: float) -> None:
         self.press_started_at = now
@@ -633,7 +645,8 @@ class HomeButton:
                     self.pending_activation = False
                     self.on_activate()
 
-        self.sprite.scale = self.current_scale
+        for sprite in (self.normal_sprite, self.active_sprite):
+            sprite.scale = self.current_scale
 
     def draw(self) -> None:
         self.sprite.draw()
