@@ -69,6 +69,13 @@ WINDOW_CLOSE_HALF_SIZE = 13
 WINDOW_CLOSE_OFFSET_X = 24
 WINDOW_CLOSE_OFFSET_Y = 21
 WINDOW_CLOSE_TEXT_OFFSET_Y = 1
+SETTINGS_SLIDER_LEFT_PADDING = 36
+SETTINGS_SLIDER_RIGHT_PADDING = 36
+SETTINGS_SLIDER_TOP_PADDING = 115
+SETTINGS_SLIDER_BAR_HEIGHT = 10
+SETTINGS_SLIDER_KNOB_RADIUS = 13
+SETTINGS_SLIDER_LABEL_SIZE = 18
+SETTINGS_SLIDER_VALUE_SIZE = 16
 UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
 UI_FONT_NAME = "Kenney Future Narrow"
 
@@ -97,6 +104,7 @@ class BackgroundMusicPlaylist:
         self._current_sound: Optional[pygame.mixer.Sound] = None
         self._started = False
         self._available = bool(self.track_paths)
+        self._volume = 0.7
 
     def start(self) -> None:
         if self._started or not self._available:
@@ -115,6 +123,7 @@ class BackgroundMusicPlaylist:
             if not self._sounds:
                 raise pygame.error("No playable music tracks were found.")
             self._channel = pygame.mixer.Channel(0)
+            self._channel.set_volume(self._volume)
             self._current_sound = self._sounds[0]
             self._channel.play(self._current_sound)
             self._queue_next_track()
@@ -135,6 +144,15 @@ class BackgroundMusicPlaylist:
 
         self._current_sound = current_sound
         self._queue_next_track()
+
+    def set_volume(self, volume: float) -> None:
+        self._volume = max(0.0, min(1.0, volume))
+        if self._channel is not None:
+            self._channel.set_volume(self._volume)
+
+    @property
+    def volume(self) -> float:
+        return self._volume
 
     def _queue_next_track(self) -> None:
         if self._channel is None or not self._sounds or self._current_sound is None:
@@ -777,6 +795,7 @@ class HomeView(arcade.View):
             self.layout,
             title=label.title(),
             on_close=lambda: self._close_window(label),
+            music=self.music,
         )
 
     def _set_button_active(self, label: str, is_active: bool) -> None:
@@ -866,10 +885,17 @@ class HomeView(arcade.View):
 class ComputerWindowOverlay:
     """A draggable computer-style window drawn on top of the home screen."""
 
-    def __init__(self, layout: GameLayout, title: str, on_close: Callable[[], None]) -> None:
+    def __init__(
+        self,
+        layout: GameLayout,
+        title: str,
+        on_close: Callable[[], None],
+        music: Optional[BackgroundMusicPlaylist] = None,
+    ) -> None:
         self.layout = layout
         self.title = title
         self.on_close = on_close
+        self.music = music
         self.window_width = 0.0
         self.window_height = 0.0
         self.window_x = 0.0
@@ -877,6 +903,7 @@ class ComputerWindowOverlay:
         self.is_dragging = False
         self.drag_offset_x = 0.0
         self.drag_offset_y = 0.0
+        self.is_adjusting_volume = False
         self.title_text = arcade.Text(
             self.title,
             0,
@@ -895,6 +922,26 @@ class ComputerWindowOverlay:
             layout.window_close_font_size,
             font_name=UI_FONT_NAME,
             anchor_x="center",
+            anchor_y="center",
+        )
+        self.settings_label_text = arcade.Text(
+            "Music Volume",
+            0,
+            0,
+            THEME_TEXT_PURPLE,
+            layout.ss(SETTINGS_SLIDER_LABEL_SIZE),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        )
+        self.settings_value_text = arcade.Text(
+            "",
+            0,
+            0,
+            THEME_TEXT_PURPLE,
+            layout.ss(SETTINGS_SLIDER_VALUE_SIZE),
+            font_name=UI_FONT_NAME,
+            anchor_x="right",
             anchor_y="center",
         )
         self.update_layout(layout)
@@ -928,6 +975,42 @@ class ComputerWindowOverlay:
         self.title_text.y = top - self.layout.sy(38)
         self.close_text.x = (close_left + close_right) / 2
         self.close_text.y = (close_bottom + close_top) / 2 - self.layout.window_close_text_offset_y
+        if self.title == "Settings":
+            slider_left, slider_right, slider_center_y = self._slider_geometry()
+            self.settings_label_text.x = slider_left
+            self.settings_label_text.y = slider_center_y + self.layout.sy(30)
+            self.settings_value_text.x = slider_right
+            self.settings_value_text.y = slider_center_y + self.layout.sy(30)
+            if self.music is not None:
+                self.settings_value_text.text = f"{int(round(self.music.volume * 100))}%"
+
+    def _slider_geometry(self) -> tuple[float, float, float]:
+        left, right, _, top = self._bounds()
+        slider_left = left + self.layout.sx(SETTINGS_SLIDER_LEFT_PADDING)
+        slider_right = right - self.layout.sx(SETTINGS_SLIDER_RIGHT_PADDING)
+        slider_center_y = top - self.layout.sy(SETTINGS_SLIDER_TOP_PADDING)
+        return slider_left, slider_right, slider_center_y
+
+    def _slider_bounds(self) -> tuple[float, float, float, float]:
+        slider_left, slider_right, slider_center_y = self._slider_geometry()
+        half_height = self.layout.sy(SETTINGS_SLIDER_BAR_HEIGHT) / 2
+        return slider_left, slider_right, slider_center_y - half_height, slider_center_y + half_height
+
+    def _slider_knob_center_x(self) -> float:
+        slider_left, slider_right, _ = self._slider_geometry()
+        if self.music is None:
+            return slider_left
+        return slider_left + (slider_right - slider_left) * self.music.volume
+
+    def _set_music_volume_from_x(self, x: float) -> None:
+        if self.music is None:
+            return
+        slider_left, slider_right, _ = self._slider_geometry()
+        if slider_right <= slider_left:
+            return
+        volume = (x - slider_left) / (slider_right - slider_left)
+        self.music.set_volume(volume)
+        self.settings_value_text.text = f"{int(round(self.music.volume * 100))}%"
 
     def update_layout(self, layout: GameLayout) -> None:
         self.layout = layout
