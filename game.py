@@ -970,9 +970,10 @@ class ComputerWindowOverlay:
 
     def _sync_text_positions(self) -> None:
         left, right, _, top = self._bounds()
+        _, _, header_bottom, header_top = self._header_bounds()
         close_left, close_right, close_bottom, close_top = self._close_bounds()
         self.title_text.x = left + self.layout.window_title_left_padding
-        self.title_text.y = top - self.layout.sy(38)
+        self.title_text.y = (header_bottom + header_top) / 2
         self.close_text.x = (close_left + close_right) / 2
         self.close_text.y = (close_bottom + close_top) / 2 - self.layout.window_close_text_offset_y
         if self.title == "Settings":
