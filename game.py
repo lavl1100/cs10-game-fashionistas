@@ -712,7 +712,15 @@ class SpriteButtonPanel:
         self.image_path = image_path
         self.crop_image_to_fit = crop_image_to_fit
         self.sprite = DrawableSprite(
-            _make_sprite(image_path, center_x, center_y, width, height, fill_color)
+            _make_sprite(
+                image_path,
+                center_x,
+                center_y,
+                width,
+                height,
+                fill_color,
+                crop_to_fit=crop_image_to_fit,
+            )
             if image_path is not None
             else _make_panel(center_x, center_y, width, height, fill_color, 255)
         )
@@ -1160,111 +1168,6 @@ class ActivityMenuView(arcade.View):
 
     def on_resize(self, width: float, height: float) -> None:
         self._apply_layout(GameLayout(width, height))
-
-
-class ActivityWindowOverlay(ComputerWindowOverlay):
-    """An activity chooser embedded inside a computer-style window."""
-
-    def __init__(
-        self,
-        layout: GameLayout,
-        on_close: Callable[[], None],
-        music: Optional[BackgroundMusicPlaylist] = None,
-    ) -> None:
-        super().__init__(layout, "Activities", on_close, music)
-        self.upcycling_button: Optional[SpriteButtonPanel] = None
-        self.thrifting_button: Optional[SpriteButtonPanel] = None
-        self.selection_text = arcade.Text(
-            "Choose an activity",
-            0,
-            0,
-            THEME_TEXT_PURPLE,
-            layout.ss(18),
-            font_name=UI_FONT_NAME,
-            anchor_x="center",
-            anchor_y="center",
-        )
-        self._selected_label = "Choose an activity"
-        self._apply_activity_layout(layout)
-
-    def _select_activity(self, label: str) -> None:
-        self._selected_label = f"Selected: {label}"
-        self.selection_text.text = self._selected_label
-
-    def _apply_activity_layout(self, layout: GameLayout) -> None:
-        self.update_layout(layout)
-        left, right, bottom, top = self._bounds()
-        content_left = left + layout.sx(24)
-        content_right = right - layout.sx(24)
-        content_top = top - layout.window_header_height - layout.sy(14)
-        content_bottom = bottom + layout.sy(22)
-        button_width = content_right - content_left
-        gap = layout.sy(14)
-        max_button_height = (content_top - content_bottom - gap - layout.sy(34)) / 2
-        button_height = max(layout.sy(64), min(layout.sy(96), max_button_height))
-        first_center_y = content_top - button_height / 2 - layout.sy(10)
-        second_center_y = first_center_y - button_height - gap
-        button_center_x = (left + right) / 2
-        if self.upcycling_button is None:
-            self.upcycling_button = SpriteButtonPanel(
-                layout,
-                "Upcycling Station",
-                button_center_x,
-                first_center_y,
-                button_width,
-                button_height,
-                (248, 214, 233),
-                lambda: self._select_activity("Upcycling Station"),
-                text_size=layout.ss(24),
-            )
-        else:
-            self.upcycling_button.update_layout(layout, button_center_x, first_center_y, button_width, button_height, layout.ss(24))
-        if self.thrifting_button is None:
-            self.thrifting_button = SpriteButtonPanel(
-                layout,
-                "Thrifting",
-                button_center_x,
-                second_center_y,
-                button_width,
-                button_height,
-                (214, 238, 222),
-                lambda: self._select_activity("Thrifting"),
-                image_path=THRIFTING_BUTTON_IMAGE_PATH,
-                crop_image_to_fit=True,
-                text_size=layout.ss(24),
-            )
-        else:
-            self.thrifting_button.update_layout(layout, button_center_x, second_center_y, button_width, button_height, layout.ss(24))
-        self.selection_text.x = button_center_x
-        self.selection_text.y = bottom + layout.sy(38)
-        self.selection_text.font_size = layout.ss(18)
-
-    def on_show_view(self) -> None:
-        super().on_show_view()
-        self.selection_text.text = self._selected_label
-
-    def on_draw(self) -> None:
-        super().on_draw()
-        self.selection_text.draw()
-        if self.upcycling_button is not None:
-            self.upcycling_button.draw()
-        if self.thrifting_button is not None:
-            self.thrifting_button.draw()
-
-    def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> bool:
-        if button != arcade.MOUSE_BUTTON_LEFT:
-            return False
-        if self.upcycling_button is not None and self.upcycling_button.hit_test(x, y):
-            self.upcycling_button.activate()
-            return True
-        if self.thrifting_button is not None and self.thrifting_button.hit_test(x, y):
-            self.thrifting_button.activate()
-            return True
-        return super().on_mouse_press(x, y, button, modifiers)
-
-    def on_resize(self, width: float, height: float) -> None:
-        layout = GameLayout(width, height)
-        self._apply_activity_layout(layout)
 
 
 class ActivityDetailView(arcade.View):
@@ -1747,6 +1650,129 @@ class ComputerWindowOverlay:
 
     def close(self) -> None:
         self._close()
+
+    def on_resize(self, width: float, height: float) -> None:
+        self.update_layout(GameLayout(width, height))
+
+
+class ActivityWindowOverlay(ComputerWindowOverlay):
+    """An activity chooser embedded inside a computer-style window."""
+
+    def __init__(
+        self,
+        layout: GameLayout,
+        on_close: Callable[[], None],
+        music: Optional[BackgroundMusicPlaylist] = None,
+    ) -> None:
+        super().__init__(layout, "Activities", on_close, music)
+        self.upcycling_button: Optional[SpriteButtonPanel] = None
+        self.thrifting_button: Optional[SpriteButtonPanel] = None
+        self.selection_text = arcade.Text(
+            "Choose an activity",
+            0,
+            0,
+            THEME_TEXT_PURPLE,
+            layout.ss(18),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        )
+        self._selected_label = "Choose an activity"
+        self._apply_activity_layout(layout)
+
+    def _select_activity(self, label: str) -> None:
+        self._selected_label = f"Selected: {label}"
+        self.selection_text.text = self._selected_label
+
+    def _apply_activity_layout(self, layout: GameLayout) -> None:
+        left, right, bottom, top = self._bounds()
+        content_left = left + layout.sx(24)
+        content_right = right - layout.sx(24)
+        content_top = top - layout.window_header_height - layout.sy(14)
+        content_bottom = bottom + layout.sy(22)
+        button_width = content_right - content_left
+        gap = layout.sy(14)
+        max_button_height = (content_top - content_bottom - gap - layout.sy(34)) / 2
+        button_height = max(layout.sy(64), min(layout.sy(96), max_button_height))
+        first_center_y = content_top - button_height / 2 - layout.sy(10)
+        second_center_y = first_center_y - button_height - gap
+        button_center_x = (left + right) / 2
+        if self.upcycling_button is None:
+            self.upcycling_button = SpriteButtonPanel(
+                layout,
+                "Upcycling Station",
+                button_center_x,
+                first_center_y,
+                button_width,
+                button_height,
+                (248, 214, 233),
+                lambda: self._select_activity("Upcycling Station"),
+                text_size=layout.ss(24),
+            )
+        else:
+            self.upcycling_button.update_layout(
+                layout,
+                button_center_x,
+                first_center_y,
+                button_width,
+                button_height,
+                layout.ss(24),
+            )
+        if self.thrifting_button is None:
+            self.thrifting_button = SpriteButtonPanel(
+                layout,
+                "Thrifting",
+                button_center_x,
+                second_center_y,
+                button_width,
+                button_height,
+                (214, 238, 222),
+                lambda: self._select_activity("Thrifting"),
+                image_path=THRIFTING_BUTTON_IMAGE_PATH,
+                crop_image_to_fit=True,
+                text_size=layout.ss(24),
+            )
+        else:
+            self.thrifting_button.update_layout(
+                layout,
+                button_center_x,
+                second_center_y,
+                button_width,
+                button_height,
+                layout.ss(24),
+            )
+        self.selection_text.x = button_center_x
+        self.selection_text.y = bottom + layout.sy(38)
+        self.selection_text.font_size = layout.ss(18)
+
+    def update_layout(self, layout: GameLayout) -> None:
+        super().update_layout(layout)
+        self._apply_activity_layout(layout)
+
+    def on_show_view(self) -> None:
+        super().on_show_view()
+        if self.window is not None:
+            self._apply_activity_layout(GameLayout(self.window.width, self.window.height))
+        self.selection_text.text = self._selected_label
+
+    def on_draw(self) -> None:
+        super().on_draw()
+        self.selection_text.draw()
+        if self.upcycling_button is not None:
+            self.upcycling_button.draw()
+        if self.thrifting_button is not None:
+            self.thrifting_button.draw()
+
+    def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> bool:
+        if button != arcade.MOUSE_BUTTON_LEFT:
+            return False
+        if self.upcycling_button is not None and self.upcycling_button.hit_test(x, y):
+            self.upcycling_button.activate()
+            return True
+        if self.thrifting_button is not None and self.thrifting_button.hit_test(x, y):
+            self.thrifting_button.activate()
+            return True
+        return super().on_mouse_press(x, y, button, modifiers)
 
     def on_resize(self, width: float, height: float) -> None:
         self.update_layout(GameLayout(width, height))
