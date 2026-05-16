@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import random
 import time
 import warnings
 from typing import Callable, Optional
@@ -80,6 +81,16 @@ ACTIVITY_MENU_BACK_BUTTON_WIDTH = 150
 ACTIVITY_MENU_BACK_BUTTON_HEIGHT = 52
 ACTIVITY_MENU_BACK_BUTTON_MARGIN = 24
 THRIFTING_BUTTON_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
+THRIFTING_CLOTHING_IMAGE_PATHS = [
+    ASSETS_DIR / "thriftingclothing.png",
+    ASSETS_DIR / "thriftingclothing2.png",
+    ASSETS_DIR / "thriftingclothing3.png",
+    ASSETS_DIR / "thriftingclothing4.png",
+    ASSETS_DIR / "thriftingclothing5.png",
+]
+THRIFTING_RACK_SIZE = 12
+THRIFTING_SPACING = 120
+THRIFTING_STARTING_MONEY = 100
 UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
 UI_FONT_NAME = "Kenney Future Narrow"
 
@@ -944,10 +955,22 @@ class HomeView(arcade.View):
         return open_window
 
     def _open_activity_menu(self) -> None:
-        self.active_window = ActivityWindowOverlay(self.layout, self._close_activity_window, self.music)
+        self.active_window = ActivityWindowOverlay(
+            self.layout,
+            self._close_activity_window,
+            self._open_thrifting_game,
+            self.music,
+        )
 
     def _close_activity_window(self) -> None:
         self.active_window = None
+
+    def _open_thrifting_game(self) -> None:
+        self.active_window = ThriftingGameOverlay(
+            self.layout,
+            self._open_activity_menu,
+            self.music,
+        )
 
     def _open_window(self, label: str) -> None:
         if self.active_window is not None and self.active_window.title == "Social Media" and label != "social media":
@@ -1015,6 +1038,8 @@ class HomeView(arcade.View):
     def on_update(self, delta_time: float) -> None:
         now = _current_time()
         self.music.update()
+        if self.active_window is not None:
+            self.active_window.on_update(delta_time)
         self._sync_clock_text()
         for nav_button in self.buttons:
             nav_button.update(delta_time, now)
@@ -1662,12 +1687,14 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
         self,
         layout: GameLayout,
         on_close: Callable[[], None],
+        on_open_thrifting: Callable[[], None],
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
         self._activity_ready = False
         self.upcycling_button = None
         self.thrifting_button = None
         self._selected_label = "Choose an activity"
+        self.on_open_thrifting = on_open_thrifting
         self.selection_text = arcade.Text(
             "Choose an activity",
             0,
@@ -1729,7 +1756,7 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
                 button_width,
                 button_height,
                 (214, 238, 222),
-                lambda: self._select_activity("Thrifting"),
+                self.on_open_thrifting,
                 image_path=THRIFTING_BUTTON_IMAGE_PATH,
                 crop_image_to_fit=True,
                 text_size=layout.ss(24),
