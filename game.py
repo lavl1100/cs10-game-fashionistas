@@ -659,8 +659,9 @@ class HomeButton:
 
     def press(self, now: float) -> None:
         self.press_started_at = now
-        self.pending_activation = False
-        self.on_activate()
+        # Defer the actual action until the next update tick so the click is
+        # handled after Arcade finishes dispatching the mouse event.
+        self.pending_activation = True
 
     def update(self, dt: float, now: float) -> None:
         if self.press_started_at is None:
@@ -1029,6 +1030,7 @@ class HomeView(arcade.View):
                 if nav_button.label == "social media":
                     nav_button.set_active(True)
                 nav_button.press(now)
+                self._pending_action = nav_button.on_activate
                 return
 
         if self.active_window is not None and self.active_window.on_mouse_press(x, y, button, modifiers):
