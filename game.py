@@ -1032,6 +1032,7 @@ class HomeView(arcade.View):
                 if nav_button.label == "social media":
                     nav_button.set_active(True)
                 nav_button.press(now)
+                nav_button.on_activate()
                 return
 
         if self.active_window is not None and self.active_window.on_mouse_press(x, y, button, modifiers):
