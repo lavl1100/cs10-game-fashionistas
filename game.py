@@ -662,15 +662,11 @@ class HomeButton:
         self.press_started_at = now
         self.pending_activation = True
         self.is_pressed = True
+        self.on_activate()
 
-    def release(self) -> bool:
-        was_pressed = self.pending_activation
+    def release(self) -> None:
         self.pending_activation = False
         self.is_pressed = False
-        if was_pressed:
-            self.on_activate()
-            return True
-        return False
 
     def update(self, dt: float, now: float) -> None:
         if self.press_started_at is None:
@@ -808,14 +804,10 @@ class SpriteButtonPanel:
 
     def press(self) -> None:
         self.is_pressed = True
+        self.activate()
 
-    def release(self, x: float, y: float) -> bool:
-        was_pressed = self.is_pressed
+    def release(self) -> None:
         self.is_pressed = False
-        if was_pressed and self.hit_test(x, y):
-            self.activate()
-            return True
-        return False
 
     def draw(self) -> None:
         self.sprite.draw()
@@ -1084,11 +1076,8 @@ class HomeView(arcade.View):
         if self._pressed_button is not None:
             pressed_button = self._pressed_button
             self._pressed_button = None
-            if pressed_button.hit_test(x, y):
-                if pressed_button.label == "social media":
-                    pressed_button.set_active(True)
-                pressed_button.release()
-                return
+            pressed_button.release()
+            return
 
         if self.active_window is not None:
             self.active_window.on_mouse_release(x, y, button, modifiers)
@@ -1218,12 +1207,12 @@ class ActivityMenuView(arcade.View):
     def on_mouse_release(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
             return
-        if self.left_button is not None and self.left_button.release(x, y):
-            return
-        if self.right_button is not None and self.right_button.release(x, y):
-            return
-        if self.home_button is not None and self.home_button.release(x, y):
-            return
+        if self.left_button is not None:
+            self.left_button.release()
+        if self.right_button is not None:
+            self.right_button.release()
+        if self.home_button is not None:
+            self.home_button.release()
 
     def on_key_press(self, key: int, modifiers: int) -> None:
         if key == arcade.key.ESCAPE:
@@ -1380,10 +1369,10 @@ class ActivityDetailView(arcade.View):
     def on_mouse_release(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
             return
-        if self.back_button is not None and self.back_button.release(x, y):
-            return
-        if self.home_button is not None and self.home_button.release(x, y):
-            return
+        if self.back_button is not None:
+            self.back_button.release()
+        if self.home_button is not None:
+            self.home_button.release()
 
     def on_key_press(self, key: int, modifiers: int) -> None:
         if key == arcade.key.ESCAPE:
@@ -1851,10 +1840,10 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
     def on_mouse_release(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
             return
-        if self.upcycling_button is not None and self.upcycling_button.release(x, y):
-            return
-        if self.thrifting_button is not None and self.thrifting_button.release(x, y):
-            return
+        if self.upcycling_button is not None:
+            self.upcycling_button.release()
+        if self.thrifting_button is not None:
+            self.thrifting_button.release()
         super().on_mouse_release(x, y, button, modifiers)
 
     def on_resize(self, width: float, height: float) -> None:
