@@ -79,6 +79,7 @@ SETTINGS_SLIDER_VALUE_SIZE = 16
 ACTIVITY_MENU_BACK_BUTTON_WIDTH = 150
 ACTIVITY_MENU_BACK_BUTTON_HEIGHT = 52
 ACTIVITY_MENU_BACK_BUTTON_MARGIN = 24
+THRIFTING_BUTTON_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
 UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
 UI_FONT_NAME = "Kenney Future Narrow"
 
@@ -671,6 +672,7 @@ class SpriteButtonPanel:
         height: float,
         fill_color: tuple[int, int, int],
         on_activate: Callable[[], None],
+        image_path: Optional[Path] = None,
         text_color: tuple[int, int, int] = THEME_TEXT_PURPLE,
         text_size: Optional[float] = None,
     ) -> None:
@@ -682,7 +684,12 @@ class SpriteButtonPanel:
         self.height = height
         self.fill_color = fill_color
         self.on_activate = on_activate
-        self.sprite = DrawableSprite(_make_panel(center_x, center_y, width, height, fill_color, 255))
+        self.image_path = image_path
+        self.sprite = DrawableSprite(
+            _make_sprite(image_path, center_x, center_y, width, height, fill_color)
+            if image_path is not None
+            else _make_panel(center_x, center_y, width, height, fill_color, 255)
+        )
         self.text = arcade.Text(
             label,
             center_x,
@@ -715,6 +722,8 @@ class SpriteButtonPanel:
         self.sprite.sprite.center_y = center_y
         self.sprite.sprite.width = width
         self.sprite.sprite.height = height
+        if self.image_path is not None:
+            self.sprite.sprite.scale = 1.0
         self.text.x = center_x
         self.text.y = center_y
         self.text.font_size = text_size if text_size is not None else self._default_text_size(layout)
@@ -1048,6 +1057,7 @@ class ActivityMenuView(arcade.View):
                 button_height,
                 (214, 238, 222),
                 self._open_thrfifting,
+                image_path=THRIFTING_BUTTON_IMAGE_PATH,
                 text_size=layout.ss(38),
             )
         else:
