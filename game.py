@@ -1664,9 +1664,10 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
         on_close: Callable[[], None],
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
-        super().__init__(layout, "Activities", on_close, music)
-        self.upcycling_button: Optional[SpriteButtonPanel] = None
-        self.thrifting_button: Optional[SpriteButtonPanel] = None
+        self._activity_ready = False
+        self.upcycling_button = None
+        self.thrifting_button = None
+        self._selected_label = "Choose an activity"
         self.selection_text = arcade.Text(
             "Choose an activity",
             0,
@@ -1677,7 +1678,8 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
             anchor_x="center",
             anchor_y="center",
         )
-        self._selected_label = "Choose an activity"
+        super().__init__(layout, "Activities", on_close, music)
+        self._activity_ready = True
         self._apply_activity_layout(layout)
 
     def _select_activity(self, label: str) -> None:
@@ -1747,13 +1749,9 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
 
     def update_layout(self, layout: GameLayout) -> None:
         super().update_layout(layout)
+        if not self._activity_ready:
+            return
         self._apply_activity_layout(layout)
-
-    def on_show_view(self) -> None:
-        super().on_show_view()
-        if self.window is not None:
-            self._apply_activity_layout(GameLayout(self.window.width, self.window.height))
-        self.selection_text.text = self._selected_label
 
     def on_draw(self) -> None:
         super().on_draw()
