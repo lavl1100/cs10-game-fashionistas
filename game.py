@@ -588,6 +588,7 @@ class HomeButton:
         self.on_activate = on_activate
         self.press_started_at: Optional[float] = None
         self.pending_activation = False
+        self.is_pressed = False
         self.current_scale = 1.0
         self.is_active = active
         self.normal_sprite = DrawableSprite(self._build_sprite(active=False))
@@ -659,9 +660,17 @@ class HomeButton:
 
     def press(self, now: float) -> None:
         self.press_started_at = now
-        # Defer the actual action until the next update tick so the click is
-        # handled after Arcade finishes dispatching the mouse event.
         self.pending_activation = True
+        self.is_pressed = True
+
+    def release(self) -> bool:
+        was_pressed = self.pending_activation
+        self.pending_activation = False
+        self.is_pressed = False
+        if was_pressed:
+            self.on_activate()
+            return True
+        return False
 
     def update(self, dt: float, now: float) -> None:
         if self.press_started_at is None:
@@ -690,6 +699,7 @@ class HomeButton:
     def reset(self) -> None:
         self.press_started_at = None
         self.pending_activation = False
+        self.is_pressed = False
         self.current_scale = 1.0
         for sprite in (self.normal_sprite, self.active_sprite):
             sprite.scale = 1.0
@@ -723,6 +733,7 @@ class SpriteButtonPanel:
         self.on_activate = on_activate
         self.image_path = image_path
         self.crop_image_to_fit = crop_image_to_fit
+        self.is_pressed = False
         self.sprite = DrawableSprite(
             _make_sprite(
                 image_path,
@@ -795,6 +806,17 @@ class SpriteButtonPanel:
     def activate(self) -> None:
         self.on_activate()
 
+    def press(self) -> None:
+        self.is_pressed = True
+
+    def release(self, x: float, y: float) -> bool:
+        was_pressed = self.is_pressed
+        self.is_pressed = False
+        if was_pressed and self.hit_test(x, y):
+            self.activate()
+            return True
+        return False
+
     def draw(self) -> None:
         self.sprite.draw()
         arcade.draw_lrbt_rectangle_outline(
@@ -845,7 +867,7 @@ class HomeView(arcade.View):
         )
         self.buttons: list[HomeButton] = []
         self.active_window: Optional[ComputerWindowOverlay] = None
-        self._pending_action: Optional[Callable[[], None]] = None
+        self._pressed_button: Optional[HomeButton] = None
         self._build_buttons()
         self._sync_clock_text()
         self._apply_layout(self.layout)
@@ -998,7 +1020,7 @@ class HomeView(arcade.View):
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
         self.music.start()
-        self._pending_action = None
+        self._pressed_button = None
         for button in self.buttons:
             button.reset()
         if self.window is not None:
@@ -1027,10 +1049,8 @@ class HomeView(arcade.View):
         now = _current_time()
         for nav_button in self.buttons:
             if nav_button.hit_test(x, y):
-                if nav_button.label == "social media":
-                    nav_button.set_active(True)
                 nav_button.press(now)
-                self._pending_action = nav_button.on_activate
+                self._pressed_button = nav_button
                 return
 
         if self.active_window is not None and self.active_window.on_mouse_press(x, y, button, modifiers):
@@ -1045,11 +1065,6 @@ class HomeView(arcade.View):
         for nav_button in self.buttons:
             nav_button.update(delta_time, now)
 
-        if self._pending_action is not None:
-            action = self._pending_action
-            self._pending_action = None
-            action()
-
     def on_mouse_drag(
         self,
         x: float,
@@ -1063,6 +1078,18 @@ class HomeView(arcade.View):
             self.active_window.on_mouse_drag(x, y, dx, dy, buttons, modifiers)
 
     def on_mouse_release(self, x: float, y: float, button: int, modifiers: int) -> None:
+        if button != arcade.MOUSE_BUTTON_LEFT:
+            return
+
+        if self._pressed_button is not None:
+            pressed_button = self._pressed_button
+            self._pressed_button = None
+            if pressed_button.hit_test(x, y):
+                if pressed_button.label == "social media":
+                    pressed_button.set_active(True)
+                pressed_button.release()
+                return
+
         if self.active_window is not None:
             self.active_window.on_mouse_release(x, y, button, modifiers)
 
