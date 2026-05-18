@@ -684,6 +684,19 @@ class PlayerProgress:
         return new_reward_levels
 
 
+@dataclass
+class PlayerEnergy:
+    """Shared player energy state used by the home HUD and social media game."""
+
+    current: int
+    maximum: int = 10
+
+    def percentage_text(self) -> str:
+        if self.maximum <= 0:
+            return "0%"
+        return f"{int(round((self.current / self.maximum) * 100))}%"
+
+
 class ThriftInfoBox:
     """A detail card that summarizes the currently selected thrift item."""
 
@@ -1109,13 +1122,14 @@ class HomeView(arcade.View):
         self.layout = GameLayout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
         self.wallet = PlayerWallet(THRIFTING_STARTING_MONEY)
         self.progress = PlayerProgress()
+        self.energy = PlayerEnergy(10, 10)
         self.background_color = THEME_DEEP_PURPLE
         self.background_sprite = DrawableSprite(self._build_background_sprite(self.layout))
         self.theme_overlay = DrawableSprite(_make_panel(self.layout.width / 2, self.layout.height / 2, self.layout.width, self.layout.height, THEME_SOFT_LILAC, THEME_OVERLAY_ALPHA))
         self.top_bar = DrawableSprite(_make_panel(self.layout.width / 2, self.layout.top_bar_y, self.layout.width, self.layout.sy(92), THEME_LAVENDER, 120))
         self.side_bar = DrawableSprite(_make_panel(self.layout.side_bar_x, self.layout.side_bar_y, self.layout.side_bar_width, self.layout.side_bar_height, THEME_LAVENDER, 220))
         self.money_box = StatusBox(self.layout, "Money", f"${self.wallet.amount}", self.layout.top_hud_left, self.layout.top_bar_y, width=self.layout.ss(132), height=self.layout.ss(42), label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
-        self.energy_box = StatusBox(self.layout, "Energy", "85%", self.layout.top_hud_left + self.layout.top_hud_gap, self.layout.top_bar_y, width=self.layout.ss(132), height=self.layout.ss(42), label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
+        self.energy_box = StatusBox(self.layout, "Energy", self.energy.percentage_text(), self.layout.top_hud_left + self.layout.top_hud_gap, self.layout.top_bar_y, width=self.layout.ss(132), height=self.layout.ss(42), label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
         self.level_box = StatusBox(self.layout, "Level", f"{self.progress.level} ({self.progress.experience}/{THRIFTING_XP_PER_LEVEL})", self.layout.top_hud_left + self.layout.top_hud_gap * 2, self.layout.top_bar_y, width=self.layout.ss(108), height=self.layout.ss(42), accent_color=THEME_DEEP_PURPLE, label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
         self.date_text = arcade.Text(
             "",
@@ -1161,6 +1175,9 @@ class HomeView(arcade.View):
 
     def _sync_money_box(self) -> None:
         self.money_box.set_value(f"${self.wallet.amount}")
+
+    def _sync_energy_box(self) -> None:
+        self.energy_box.set_value(self.energy.percentage_text())
 
     def _sync_level_box(self) -> None:
         self.level_box.set_value(f"{self.progress.level} ({self.progress.experience}/{THRIFTING_XP_PER_LEVEL})")
@@ -1282,6 +1299,7 @@ class HomeView(arcade.View):
             self.active_window = SocialMediaGameOverlay(
                 self.layout,
                 lambda: self._close_window(label),
+                self.energy,
                 self.music,
             )
             return
@@ -1312,6 +1330,7 @@ class HomeView(arcade.View):
         if self.window is not None:
             self._apply_layout(GameLayout(self.window.width, self.window.height))
         self._sync_money_box()
+        self._sync_energy_box()
         self._sync_level_box()
 
     def on_draw(self) -> None:
@@ -1351,6 +1370,7 @@ class HomeView(arcade.View):
             self.active_window.on_update(delta_time)
         self._sync_clock_text()
         self._sync_money_box()
+        self._sync_energy_box()
         self._sync_level_box()
         for nav_button in self.buttons:
             nav_button.update(delta_time, now)
@@ -2212,15 +2232,15 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self,
         layout: GameLayout,
         on_close: Callable[[], None],
+        energy: Optional[PlayerEnergy] = None,
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
         self._social_ready = False
+        self.energy_state = energy if energy is not None else PlayerEnergy(10, 10)
         self.followers = 100
         self.day = 1
         self.day_timer = 0.0
         self.day_length = 60.0
-        self.energy = 10
-        self.max_energy = 10
         self.posts_made = 0
         self.viral_count = 0
         self.eco_impact = 0
@@ -2299,10 +2319,31 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self._social_ready = True
         self.update_layout(layout)
 
+    @property
+    def energy(self) -> int:
+        return self.energy_state.current
+
+    @energy.setter
+    def energy(self, value: int) -> None:
+        self.energy_state.current = max(0, min(value, self.max_energy))
+
+    @property
+    def max_energy(self) -> int:
+        return self.energy_state.maximum
+
+    @max_energy.setter
+    def max_energy(self, value: int) -> None:
+        self.energy_state.maximum = max(1, value)
+        self.energy_state.current = max(0, min(self.energy_state.current, self.energy_state.maximum))
+
     def _window_size(self, layout: GameLayout) -> tuple[float, float]:
-        width = min(layout.width - layout.window_margin * 2, layout.sx(700))
-        height = min(layout.height - layout.window_margin * 2, layout.sy(520))
-        return max(layout.sx(560), width), max(layout.sy(420), height)
+        max_width = max(0.0, layout.width - layout.window_margin * 2)
+        max_height = max(0.0, layout.height - layout.window_margin * 2)
+        width = min(layout.sx(700), max_width)
+        height = min(layout.sy(520), max_height)
+        width = max(min(layout.sx(560), max_width), width)
+        height = max(min(layout.sy(420), max_height), height)
+        return width, height
 
     def _content_bounds(self) -> tuple[float, float, float, float]:
         left, right, bottom, top = self._bounds()
@@ -2316,15 +2357,20 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
     def _sidebar_width(self) -> float:
         content_left, content_right, _, _ = self._content_bounds()
         content_width = max(0.0, content_right - content_left)
+        if content_width <= 0.0:
+            return 0.0
+
+        min_width = min(self.layout.sx(SOCIAL_MEDIA_SIDEBAR_MIN_WIDTH), content_width)
+        max_width = min(self.layout.sx(SOCIAL_MEDIA_SIDEBAR_MAX_WIDTH), content_width)
         return max(
-            self.layout.sx(SOCIAL_MEDIA_SIDEBAR_MIN_WIDTH),
-            min(self.layout.sx(SOCIAL_MEDIA_SIDEBAR_MAX_WIDTH), content_width * 0.34),
+            min_width,
+            min(max_width, content_width * 0.34),
         )
 
     def _feed_bounds(self) -> tuple[float, float, float, float]:
         content_left, content_right, content_bottom, content_top = self._content_bounds()
         sidebar_width = self._sidebar_width()
-        feed_left = content_left + sidebar_width + self.layout.sx(18)
+        feed_left = min(content_right, content_left + sidebar_width + self.layout.sx(18))
         return feed_left, content_right, content_bottom, content_top
 
     def _sidebar_bounds(self) -> tuple[float, float, float, float]:
@@ -2336,21 +2382,21 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         content_left, content_right, content_bottom, content_top = self._content_bounds()
         content_width = content_right - content_left
         content_height = content_top - content_bottom
-        width = min(self.layout.sx(SOCIAL_MEDIA_COMPOSE_WIDTH), content_width - self.layout.sx(24))
-        height = min(self.layout.sy(SOCIAL_MEDIA_COMPOSE_HEIGHT), content_height - self.layout.sy(24))
+        width = max(0.0, min(self.layout.sx(SOCIAL_MEDIA_COMPOSE_WIDTH), content_width - self.layout.sx(24)))
+        height = max(0.0, min(self.layout.sy(SOCIAL_MEDIA_COMPOSE_HEIGHT), content_height - self.layout.sy(24)))
         left = content_left + (content_width - width) / 2
         bottom = content_bottom + (content_height - height) / 2
         return left, bottom, width, height
 
     def _compose_button_geometry(self) -> list[tuple[float, float, float, float]]:
         modal_left, modal_bottom, modal_width, modal_height = self._compose_modal_geometry()
-        button_height = self.layout.sy(58)
+        button_height = max(0.0, self.layout.sy(58))
         gap = self.layout.sy(8)
         count = len(self.post_types)
         total = count * button_height + (count - 1) * gap
         start_y = modal_bottom + modal_height - self.layout.sy(70) - total
         button_left = modal_left + self.layout.sx(18)
-        button_width = modal_width - self.layout.sx(36)
+        button_width = max(0.0, modal_width - self.layout.sx(36))
         geometries: list[tuple[float, float, float, float]] = []
         for index in range(count):
             button_bottom = start_y + (count - 1 - index) * (button_height + gap)
