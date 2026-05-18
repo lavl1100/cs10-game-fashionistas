@@ -1093,12 +1093,13 @@ class ComputerWindowOverlay:
     def _thrift_card_bounds(self, index: int) -> tuple[float, float, float, float]:
         left, right, bottom, top = self._content_bounds()
         gap = self.layout.ss(10)
-        title_space = self.layout.sy(76)
-        bottom_space = self.layout.sy(42)
+        content_height = max(self.layout.sy(1), top - bottom)
+        title_space = min(self.layout.sy(76), content_height * 0.32)
+        bottom_space = min(self.layout.sy(42), content_height * 0.18)
         grid_top = top - title_space
         grid_bottom = bottom + bottom_space
         card_width = (right - left - gap) / 2
-        card_height = max(self.layout.sy(58), (grid_top - grid_bottom - gap) / 2)
+        card_height = max(self.layout.sy(1), (grid_top - grid_bottom - gap) / 2)
         row = index // 2
         col = index % 2
         card_left = left + col * (card_width + gap)
@@ -1231,14 +1232,19 @@ class ComputerWindowOverlay:
                 anchor_x="center",
             )
 
-            item_width = min((card_right - card_left) * 0.32, self.layout.sx(52))
-            item_height = min((card_top - card_bottom) * 0.42, self.layout.sy(44))
+            card_width = card_right - card_left
+            card_height = card_top - card_bottom
+            item_width = min(card_width * 0.32, self.layout.sx(52))
+            item_height = min(card_height * 0.42, self.layout.sy(44))
             item_center_x = card_left + self.layout.sx(18) + item_width / 2
-            item_center_y = card_bottom + (card_top - card_bottom) * 0.48
+            item_center_y = card_bottom + card_height * 0.48
             item_left = max(card_left + self.layout.sx(8), item_center_x - item_width / 2)
             item_right = min(card_right - self.layout.sx(8), item_center_x + item_width / 2)
-            item_bottom = max(card_bottom + self.layout.sy(28), item_center_y - item_height / 2)
-            item_top = min(card_top - self.layout.sy(30), item_center_y + item_height / 2)
+            item_bottom_padding = min(self.layout.sy(28), card_height * 0.32)
+            item_top_padding = min(self.layout.sy(30), card_height * 0.36)
+            item_bottom = max(card_bottom + item_bottom_padding, item_center_y - item_height / 2)
+            item_top = min(card_top - item_top_padding, item_center_y + item_height / 2)
+            item_top = max(item_bottom + self.layout.sy(1), item_top)
             arcade.draw_lrbt_rectangle_filled(item_left, item_right, item_bottom, item_top, THEME_LAVENDER)
             arcade.draw_triangle_filled(
                 item_left,
