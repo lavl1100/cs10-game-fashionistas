@@ -588,6 +588,171 @@ class StatusBox:
         self.value_text.draw()
 
 
+class ThriftInfoBox:
+    """A detail card that summarizes the currently selected thrift item."""
+
+    def __init__(
+        self,
+        layout: GameLayout,
+        center_x: float,
+        center_y: float,
+        width: float,
+        height: float,
+    ) -> None:
+        self.layout = layout
+        self.center_x = center_x
+        self.center_y = center_y
+        self.width = width
+        self.height = height
+        self.title = "Clothing Info"
+        self._build_visuals()
+        self.set_item(None)
+
+    def _build_visuals(self) -> None:
+        self.shadow = DrawableSprite(
+            _make_panel(
+                self.center_x + self.layout.ss(3),
+                self.center_y - self.layout.ss(3),
+                self.width,
+                self.height,
+                THEME_DEEP_PURPLE,
+                110,
+            )
+        )
+        self.border = DrawableSprite(
+            _make_panel(
+                self.center_x,
+                self.center_y,
+                self.width + self.layout.ss(4),
+                self.height + self.layout.ss(4),
+                THRIFTING_WINDOW_BORDER,
+                255,
+            )
+        )
+        self.panel = DrawableSprite(
+            _make_panel(self.center_x, self.center_y, self.width, self.height, THRIFTING_CONTENT_FILL, 230)
+        )
+        self.accent = DrawableSprite(
+            _make_panel(
+                self.center_x - self.width * 0.36,
+                self.center_y,
+                self.layout.ss(4),
+                self.height - self.layout.ss(12),
+                THRIFTING_SUCCESS_COLOR,
+                255,
+            )
+        )
+        title_x = self.center_x - self.width * 0.34
+        title_y = self.center_y + self.height * 0.31
+        line_gap = max(self.layout.sy(18), self.layout.ss(14))
+        label_x = self.center_x - self.width * 0.34
+        value_x = self.center_x + self.width * 0.30
+        if not hasattr(self, "title_text"):
+            self.title_text = arcade.Text(
+                self.title,
+                title_x,
+                title_y,
+                THRIFTING_TITLE_COLOR,
+                self.layout.ss(15),
+                font_name=UI_FONT_NAME,
+                anchor_x="left",
+                anchor_y="center",
+            )
+            self.labels = [
+                arcade.Text(
+                    "",
+                    label_x,
+                    title_y - line_gap * (index + 1),
+                    THRIFTING_TITLE_COLOR,
+                    self.layout.ss(11),
+                    font_name=UI_FONT_NAME,
+                    anchor_x="left",
+                    anchor_y="center",
+                )
+                for index in range(4)
+            ]
+            self.values = [
+                arcade.Text(
+                    "",
+                    value_x,
+                    title_y - line_gap * (index + 1),
+                    THRIFTING_TITLE_COLOR,
+                    self.layout.ss(11),
+                    font_name=UI_FONT_NAME,
+                    anchor_x="right",
+                    anchor_y="center",
+                )
+                for index in range(4)
+            ]
+        else:
+            self.title_text.x = title_x
+            self.title_text.y = title_y
+            self.title_text.font_size = self.layout.ss(15)
+            for index, text in enumerate(self.labels):
+                text.x = label_x
+                text.y = title_y - line_gap * (index + 1)
+                text.font_size = self.layout.ss(11)
+            for index, text in enumerate(self.values):
+                text.x = value_x
+                text.y = title_y - line_gap * (index + 1)
+                text.font_size = self.layout.ss(11)
+
+    def set_item(self, item: Optional["ThriftItem"]) -> None:
+        if item is None:
+            entries = [
+                ("Fabric", "-"),
+                ("Type", "-"),
+                ("Price", "-"),
+                ("Value", "-"),
+            ]
+        else:
+            entries = [
+                ("Fabric", item.fabric.title()),
+                ("Type", "Eco Friendly" if item.eco else "Fast Fashion"),
+                ("Price", f"${item.price}"),
+                ("Value", f"${item.value}"),
+            ]
+
+        for text, (label, value) in zip(self.labels, entries):
+            text.text = f"{label}:"
+            text.color = THRIFTING_TITLE_COLOR
+        for text, (label, value) in zip(self.values, entries):
+            del label
+            text.text = value
+            text.color = THRIFTING_SUCCESS_COLOR if value == "Eco Friendly" else THRIFTING_WARNING_COLOR
+        if item is not None:
+            self.labels[1].color = THRIFTING_SUCCESS_COLOR if item.eco else THRIFTING_WARNING_COLOR
+            self.values[1].color = THRIFTING_SUCCESS_COLOR if item.eco else THRIFTING_WARNING_COLOR
+            self.values[2].color = THRIFTING_TITLE_COLOR
+            self.values[3].color = THRIFTING_TITLE_COLOR
+
+    def update_layout(
+        self,
+        layout: GameLayout,
+        center_x: float,
+        center_y: float,
+        width: float,
+        height: float,
+    ) -> None:
+        self.layout = layout
+        self.center_x = center_x
+        self.center_y = center_y
+        self.width = width
+        self.height = height
+        self._build_visuals()
+
+    def draw(self) -> None:
+        self.shadow.draw()
+        self.border.draw()
+        self.panel.draw()
+        self.accent.draw()
+        self.title_text.draw()
+        for text in self.labels:
+            text.draw()
+        for text in self.values:
+            text.draw()
+
+
 class HomeButton:
     """A left-side navigation button with a press animation and two visual states."""
 
