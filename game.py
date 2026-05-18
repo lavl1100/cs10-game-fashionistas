@@ -89,16 +89,6 @@ THRIFTING_CLOTHING_IMAGE_PATHS = [
     ASSETS_DIR / "thriftingclothing4.png",
     ASSETS_DIR / "thriftingclothing5.png",
 ]
-THRIFTING_TEXTURE_CENTER = (750.0, 450.0)
-THRIFTING_HANGER_CENTER_RATIO_X = 745.8408136605393 / 1500.0
-THRIFTING_HANGER_CENTER_RATIO_Y = 365.91854063637214 / 900.0
-THRIFTING_CLOTHING_VISIBLE_CENTERS = {
-    "thriftingclothing.png": (738.0, 577.0),
-    "thriftingclothing2.png": (712.5, 527.5),
-    "thriftingclothing3.png": (725.0, 486.0),
-    "thriftingclothing4.png": (721.5, 573.5),
-    "thriftingclothing5.png": (733.5, 588.0),
-}
 THRIFTING_RACK_SIZE = 12
 THRIFTING_STARTING_MONEY = 100
 FAST_FASHION_FABRICS = ["polyester", "nylon", "rayon", "acrylic"]
@@ -2172,32 +2162,15 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             top - self.layout.window_header_height - self.layout.sy(16),
         )
 
-    def _hanger_position(self) -> tuple[float, float]:
-        content_left, content_right, content_bottom, content_top = self._content_bounds()
-        hanger_x = content_left + (content_right - content_left) * THRIFTING_HANGER_CENTER_RATIO_X
-        hanger_y = content_top - (content_top - content_bottom) * THRIFTING_HANGER_CENTER_RATIO_Y
-        return hanger_x, hanger_y
-
-    def _selected_item_position(self, item: ThriftItem) -> tuple[float, float]:
-        hanger_x, hanger_y = self._hanger_position()
-        visible_center_x, visible_center_y = THRIFTING_CLOTHING_VISIBLE_CENTERS[
-            item.texture_path.name
-        ]
-        offset_x = visible_center_x - THRIFTING_TEXTURE_CENTER[0]
-        offset_y = visible_center_y - THRIFTING_TEXTURE_CENTER[1]
-        scale = 0.33
-        return (
-            hanger_x - offset_x * scale - self.layout.sx(8),
-            hanger_y - offset_y * scale,
-        )
-
     def _show_current_item(self) -> None:
         self.sprite_list.clear()
         if not self.rack:
             return
         item = self.rack[self.current_index]
-        item.sprite.scale = 0.33
-        item.sprite.center_x, item.sprite.center_y = self._selected_item_position(item)
+        item.sprite.center_x = self.background_sprite.center_x
+        item.sprite.center_y = self.background_sprite.center_y
+        item.sprite.width = self.background_sprite.width
+        item.sprite.height = self.background_sprite.height
         item.sprite.alpha = 255
         self.sprite_list.append(item.sprite)
 
