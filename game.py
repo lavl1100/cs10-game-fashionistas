@@ -92,6 +92,8 @@ THRIFTING_CLOTHING_IMAGE_PATHS = [
 ]
 THRIFTING_RACK_SIZE = 12
 THRIFTING_STARTING_MONEY = 100
+THRIFTING_XP_PER_LEVEL = 200
+THRIFTING_LEVEL_UP_REWARD = 100
 FAST_FASHION_FABRICS = ["polyester", "nylon", "rayon", "acrylic"]
 ECO_FABRICS = ["cotton", "linen", "wool", "hemp"]
 UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
@@ -590,6 +592,27 @@ class PlayerWallet:
     amount: int
 
 
+@dataclass
+class PlayerProgress:
+    """Shared player progression state used by the home HUD and thrift game."""
+
+    level: int = 1
+    experience: int = 0
+
+    def add_experience(self, amount: int) -> int:
+        """Add experience and return the number of levels gained."""
+        if amount <= 0:
+            return 0
+
+        self.experience += amount
+        levels_gained = 0
+        while self.experience >= THRIFTING_XP_PER_LEVEL:
+            self.experience -= THRIFTING_XP_PER_LEVEL
+            self.level += 1
+            levels_gained += 1
+        return levels_gained
+
+
 class ThriftInfoBox:
     """A detail card that summarizes the currently selected thrift item."""
 
@@ -1014,6 +1037,7 @@ class HomeView(arcade.View):
         self.music = BackgroundMusicPlaylist(ASSETS_DIR)
         self.layout = GameLayout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
         self.wallet = PlayerWallet(THRIFTING_STARTING_MONEY)
+        self.progress = PlayerProgress()
         self.background_color = THEME_DEEP_PURPLE
         self.background_sprite = DrawableSprite(self._build_background_sprite(self.layout))
         self.theme_overlay = DrawableSprite(_make_panel(self.layout.width / 2, self.layout.height / 2, self.layout.width, self.layout.height, THEME_SOFT_LILAC, THEME_OVERLAY_ALPHA))
@@ -1021,7 +1045,7 @@ class HomeView(arcade.View):
         self.side_bar = DrawableSprite(_make_panel(self.layout.side_bar_x, self.layout.side_bar_y, self.layout.side_bar_width, self.layout.side_bar_height, THEME_LAVENDER, 220))
         self.money_box = StatusBox(self.layout, "Money", f"${self.wallet.amount}", self.layout.top_hud_left, self.layout.top_bar_y, width=self.layout.ss(132), height=self.layout.ss(42), label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
         self.energy_box = StatusBox(self.layout, "Energy", "85%", self.layout.top_hud_left + self.layout.top_hud_gap, self.layout.top_bar_y, width=self.layout.ss(132), height=self.layout.ss(42), label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
-        self.level_box = StatusBox(self.layout, "Level", "1", self.layout.top_hud_left + self.layout.top_hud_gap * 2, self.layout.top_bar_y, width=self.layout.ss(108), height=self.layout.ss(42), accent_color=THEME_DEEP_PURPLE, label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
+        self.level_box = StatusBox(self.layout, "Level", f"{self.progress.level} ({self.progress.experience}/{THRIFTING_XP_PER_LEVEL})", self.layout.top_hud_left + self.layout.top_hud_gap * 2, self.layout.top_bar_y, width=self.layout.ss(108), height=self.layout.ss(42), accent_color=THEME_DEEP_PURPLE, label_size=self.layout.status_label_font_size, value_size=self.layout.status_value_font_size)
         self.date_text = arcade.Text(
             "",
             self.layout.top_clock_right,
@@ -1066,6 +1090,9 @@ class HomeView(arcade.View):
 
     def _sync_money_box(self) -> None:
         self.money_box.set_value(f"${self.wallet.amount}")
+
+    def _sync_level_box(self) -> None:
+        self.level_box.set_value(f"{self.progress.level} ({self.progress.experience}/{THRIFTING_XP_PER_LEVEL})")
 
     def _build_buttons(self) -> None:
         labels = [
@@ -1172,6 +1199,7 @@ class HomeView(arcade.View):
             self.layout,
             self._open_activity_menu,
             self.wallet,
+            self.progress,
             self.music,
         )
 
@@ -1207,6 +1235,7 @@ class HomeView(arcade.View):
         if self.window is not None:
             self._apply_layout(GameLayout(self.window.width, self.window.height))
         self._sync_money_box()
+        self._sync_level_box()
 
     def on_draw(self) -> None:
         self.clear()
@@ -1245,6 +1274,7 @@ class HomeView(arcade.View):
             self.active_window.on_update(delta_time)
         self._sync_clock_text()
         self._sync_money_box()
+        self._sync_level_box()
         for nav_button in self.buttons:
             nav_button.update(delta_time, now)
 
@@ -2081,6 +2111,7 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         layout: GameLayout,
         on_close: Callable[[], None],
         wallet: PlayerWallet,
+        progress: PlayerProgress,
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
         self._game_ready = False
@@ -2098,6 +2129,7 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         )
         self.current_index = 0
         self.wallet = wallet
+        self.progress = progress
         self.score = 0
         self.message = ""
         self._layout_ready = layout
@@ -2274,16 +2306,24 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             self.message_text.color = THRIFTING_WARNING_COLOR
             return
         self.money -= item.price
+        levels_gained = 0
         if item.eco:
             delta = (item.value - item.price) * 2
             self.score += delta
             self.message = f"Eco buy +{delta}"
             self.message_text.color = THRIFTING_SUCCESS_COLOR
+            levels_gained = self.progress.add_experience(delta)
         else:
             delta = -(item.price + 10)
             self.score += delta
             self.message = f"Fast fashion {delta}"
             self.message_text.color = THRIFTING_WARNING_COLOR
+
+        if levels_gained > 0:
+            self.money += levels_gained * THRIFTING_LEVEL_UP_REWARD
+            level_word = "level" if levels_gained == 1 else "levels"
+            reward = levels_gained * THRIFTING_LEVEL_UP_REWARD
+            self.message = f"{self.message}  +${reward} for {levels_gained} {level_word} up"
 
         self.sprite_list.remove(item.sprite)
         self.rack.pop(self.current_index)
