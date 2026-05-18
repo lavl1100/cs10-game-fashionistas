@@ -140,6 +140,7 @@ SOCIAL_MEDIA_SIDEBAR_MIN_WIDTH = 236
 SOCIAL_MEDIA_SIDEBAR_MAX_WIDTH = 292
 SOCIAL_MEDIA_COMPOSE_WIDTH = 650
 SOCIAL_MEDIA_COMPOSE_HEIGHT = 468
+SOCIAL_MEDIA_COOLDOWN_SECONDS = 10 * 60.0
 SOCIAL_MEDIA_MAX_NOTIFICATIONS = 5
 
 PRESS_ANIMATION_TIME = 0.18
@@ -690,6 +691,7 @@ class PlayerEnergy:
 
     current: int
     maximum: int = 10
+    cooldown_ends_at: float = 0.0
 
     def percentage_text(self) -> str:
         if self.maximum <= 0:
@@ -2336,6 +2338,38 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.energy_state.maximum = max(1, value)
         self.energy_state.current = max(0, min(self.energy_state.current, self.energy_state.maximum))
 
+    def _cooldown_remaining(self, now: Optional[float] = None) -> float:
+        current_time = _current_time() if now is None else now
+        return max(0.0, self.energy_state.cooldown_ends_at - current_time)
+
+    def _cooldown_active(self, now: Optional[float] = None) -> bool:
+        return self._cooldown_remaining(now) > 0.0
+
+    def _format_duration(self, seconds: float) -> str:
+        total_seconds = max(0, int(math.ceil(seconds)))
+        minutes, remainder = divmod(total_seconds, 60)
+        return f"{minutes:02d}:{remainder:02d}"
+
+    def _start_cooldown(self, reason: str, now: Optional[float] = None) -> None:
+        current_time = _current_time() if now is None else now
+        if self._cooldown_active(current_time):
+            return
+
+        self.energy = 0
+        self.day_timer = self.day_length
+        self.energy_state.cooldown_ends_at = current_time + SOCIAL_MEDIA_COOLDOWN_SECONDS
+        if reason == "energy":
+            self._notify("Out of energy - 10 minute cooldown started ♡", SOCIAL_MEDIA_CARD_MUTED)
+        else:
+            self._notify("Day finished - 10 minute cooldown started ♡", SOCIAL_MEDIA_CARD_MUTED)
+
+    def _finish_cooldown(self) -> None:
+        self.energy_state.cooldown_ends_at = 0.0
+        self.day += 1
+        self.day_timer = 0.0
+        self.energy = self.max_energy
+        self._notify(f"Day {self.day} ♡ energy restored!", (255, 160, 198))
+
     def _window_size(self, layout: GameLayout) -> tuple[float, float]:
         max_width = max(0.0, layout.width - layout.window_margin * 2)
         max_height = max(0.0, layout.height - layout.window_margin * 2)
@@ -2432,8 +2466,16 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.scroll = max(0.0, min(self.scroll, self._max_scroll()))
 
     def _create_post(self, ptype: SocialMediaPostType) -> None:
+        if self._cooldown_active():
+            self._notify(
+                f"Cooldown active - wait {self._format_duration(self._cooldown_remaining())} ♡",
+                SOCIAL_MEDIA_CARD_MUTED,
+            )
+            self.composing = False
+            return
+
         if self.energy <= 0:
-            self._notify("No energy left - wait for tomorrow ♡", SOCIAL_MEDIA_CARD_MUTED)
+            self._start_cooldown("energy")
             self.composing = False
             return
 
@@ -2473,6 +2515,8 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self._notify(f"Posted  |  {quality_label}  ({quality:.0%})", accent)
         self.composing = False
         self.hover_idx = -1
+        if self.energy <= 0:
+            self._start_cooldown("energy")
 
     def _sync_sidebar_controls(self) -> None:
         sidebar_left, sidebar_right, sidebar_bottom, sidebar_top = self._sidebar_bounds()
