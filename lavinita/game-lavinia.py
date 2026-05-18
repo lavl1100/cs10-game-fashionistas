@@ -60,6 +60,22 @@ class ThriftGame(arcade.Window):
         self.score = 0
         self.message = ""
 
+        # Reusable text objects avoid the slow draw_text helper warnings.
+        self.selected_fabric_text = arcade.Text("", 0, 0, arcade.color.BLACK, 12)
+        self.eco_status_text = arcade.Text("", 0, 0, arcade.color.BLACK, 12)
+        self.price_text = arcade.Text("", 0, 0, arcade.color.BLACK, 16)
+        self.detail_fabric_text = arcade.Text("", 0, 0, arcade.color.DARK_GRAY, 14)
+        self.money_text = arcade.Text("", 40, 70, arcade.color.BLACK, 16)
+        self.score_text = arcade.Text("", 40, 45, arcade.color.BLACK, 16)
+        self.instructions_text = arcade.Text(
+            "← → browse   SPACE buy",
+            380,
+            30,
+            arcade.color.DARK_GRAY,
+            14,
+        )
+        self.message_text = arcade.Text("", 380, 70, arcade.color.RED, 16)
+
     def setup(self):
         self.rack.clear()
         self.sprite_list = arcade.SpriteList()
@@ -124,23 +140,18 @@ class ThriftGame(arcade.Window):
         if self.rack:
             item = self.rack[self.current_index]
 
-            arcade.draw_text(
-                item.fabric.upper(),
-                item.sprite.center_x - 40,
-                item.sprite.center_y - 70,
-                arcade.color.BLACK,
-                12
-            )
+            self.selected_fabric_text.text = item.fabric.upper()
+            self.selected_fabric_text.x = item.sprite.center_x - 40
+            self.selected_fabric_text.y = item.sprite.center_y - 70
+            self.selected_fabric_text.color = arcade.color.BLACK
+            self.selected_fabric_text.draw()
 
             eco_text = "ECO 🌱 + BONUS" if item.eco else "FAST FASHION ❌ PENALTY"
-
-            arcade.draw_text(
-                eco_text,
-                SCREEN_WIDTH // 2 - 90,
-                130,
-                arcade.color.GREEN if item.eco else arcade.color.RED,
-                12
-            )
+            self.eco_status_text.text = eco_text
+            self.eco_status_text.x = SCREEN_WIDTH // 2 - 90
+            self.eco_status_text.y = 130
+            self.eco_status_text.color = arcade.color.GREEN if item.eco else arcade.color.RED
+            self.eco_status_text.draw()
 
         # Center panel
         if self.rack:
@@ -154,21 +165,17 @@ class ThriftGame(arcade.Window):
                 (255, 255, 255)
             )
 
-            arcade.draw_text(
-                f"Price: ${item.price}",
-                SCREEN_WIDTH // 2 - 50,
-                170,
-                arcade.color.BLACK,
-                16
-            )
+            self.price_text.text = f"Price: ${item.price}"
+            self.price_text.x = SCREEN_WIDTH // 2 - 50
+            self.price_text.y = 170
+            self.price_text.color = arcade.color.BLACK
+            self.price_text.draw()
 
-            arcade.draw_text(
-                item.fabric,
-                SCREEN_WIDTH // 2 - 50,
-                150,
-                arcade.color.DARK_GRAY,
-                14
-            )
+            self.detail_fabric_text.text = item.fabric
+            self.detail_fabric_text.x = SCREEN_WIDTH // 2 - 50
+            self.detail_fabric_text.y = 150
+            self.detail_fabric_text.color = arcade.color.DARK_GRAY
+            self.detail_fabric_text.draw()
 
         # UI
         arcade.draw_lbwh_rectangle_filled(
@@ -177,17 +184,16 @@ class ThriftGame(arcade.Window):
             (255, 255, 255)
         )
 
-        arcade.draw_text(f"Money: ${self.money}", 40, 70, arcade.color.BLACK, 16)
-        arcade.draw_text(f"Score: {self.score}", 40, 45, arcade.color.BLACK, 16)
+        self.money_text.text = f"Money: ${self.money}"
+        self.money_text.draw()
 
-        arcade.draw_text(
-            "← → browse   SPACE buy",
-            380, 30,
-            arcade.color.DARK_GRAY,
-            14
-        )
+        self.score_text.text = f"Score: {self.score}"
+        self.score_text.draw()
 
-        arcade.draw_text(self.message, 380, 70, arcade.color.RED, 16)
+        self.instructions_text.draw()
+
+        self.message_text.text = self.message
+        self.message_text.draw()
 
     def on_update(self, delta_time):
         speed = 8
