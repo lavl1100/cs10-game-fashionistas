@@ -1102,8 +1102,11 @@ class HomeView(arcade.View):
             self.active_window.on_mouse_release(x, y, button, modifiers)
 
     def on_key_press(self, key: int, modifiers: int) -> None:
-        if key == arcade.key.ESCAPE and self.active_window is not None:
-            self.active_window.close()
+        if self.active_window is not None:
+            self.active_window.on_key_press(key, modifiers)
+            return
+        if key == arcade.key.ESCAPE:
+            return
 
     def on_resize(self, width: float, height: float) -> None:
         self._apply_layout(GameLayout(width, height))
@@ -2010,6 +2013,13 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         self.setup()
         self.update_layout(layout)
 
+    def _sync_background(self) -> None:
+        content_left, content_right, content_bottom, content_top = self._content_bounds()
+        self.background_sprite.center_x = (content_left + content_right) / 2
+        self.background_sprite.center_y = (content_bottom + content_top) / 2
+        self.background_sprite.width = content_right - content_left
+        self.background_sprite.height = content_top - content_bottom
+
     def setup(self) -> None:
         self.rack.clear()
         self.sprite_list = arcade.SpriteList()
@@ -2154,11 +2164,7 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         super().update_layout(layout)
         if not self._game_ready:
             return
-        content_left, content_right, content_bottom, content_top = self._content_bounds()
-        self.background_sprite.center_x = (content_left + content_right) / 2
-        self.background_sprite.center_y = (content_bottom + content_top) / 2
-        self.background_sprite.width = content_right - content_left
-        self.background_sprite.height = content_top - content_bottom
+        self._sync_background()
         self.selected_fabric_text.font_size = layout.ss(12)
         self.eco_status_text.font_size = layout.ss(12)
         self.price_text.font_size = layout.ss(16)
@@ -2168,6 +2174,11 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         self.instructions_text.font_size = layout.ss(14)
         self.message_text.font_size = layout.ss(16)
         self._update_positions()
+
+    def _set_center(self, center_x: float, center_y: float) -> None:
+        super()._set_center(center_x, center_y)
+        if self._game_ready:
+            self._sync_background()
 
     def on_update(self, delta_time: float) -> None:
         if not self._game_ready:
