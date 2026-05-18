@@ -2093,45 +2093,12 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         self.score = 0
         self.message = ""
         self._layout_ready = layout
-        self.selected_fabric_text = arcade.Text(
-            "",
-            0,
-            0,
-            THRIFTING_TITLE_COLOR,
-            layout.ss(12),
-            font_name=UI_FONT_NAME,
-            anchor_x="center",
-            anchor_y="center",
-        )
-        self.eco_status_text = arcade.Text(
-            "",
-            0,
-            0,
-            THRIFTING_TITLE_COLOR,
-            layout.ss(12),
-            font_name=UI_FONT_NAME,
-            anchor_x="center",
-            anchor_y="center",
-        )
-        self.price_text = arcade.Text(
-            "",
-            0,
-            0,
-            THRIFTING_TITLE_COLOR,
-            layout.ss(16),
-            font_name=UI_FONT_NAME,
-            anchor_x="center",
-            anchor_y="center",
-        )
-        self.detail_fabric_text = arcade.Text(
-            "",
-            0,
-            0,
-            THRIFTING_WARNING_COLOR,
-            layout.ss(14),
-            font_name=UI_FONT_NAME,
-            anchor_x="center",
-            anchor_y="center",
+        self.info_box = ThriftInfoBox(
+            layout,
+            layout.sx(156),
+            layout.height - layout.sy(110),
+            layout.ss(250),
+            layout.ss(140),
         )
         self.money_text = arcade.Text(
             "",
@@ -2259,36 +2226,20 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         self.message_text.x = (content_left + content_right) / 2
         self.message_text.y = min(content_top - self.layout.sy(28), content_bottom + self.layout.sy(80))
         self.message_text.text = self.message
-        self.selected_fabric_text.font_size = self.layout.ss(12)
-        self.eco_status_text.font_size = self.layout.ss(12)
-        self.price_text.font_size = self.layout.ss(16)
-        self.detail_fabric_text.font_size = self.layout.ss(14)
-        self.price_text.color = THRIFTING_TITLE_COLOR
-        self.detail_fabric_text.color = THRIFTING_WARNING_COLOR
-
+        info_width = min(self.layout.ss(250), (content_right - content_left) * 0.32)
+        info_height = min(self.layout.ss(140), content_top - content_bottom - self.layout.sy(24))
+        self.info_box.update_layout(
+            self.layout,
+            content_left + info_width / 2,
+            content_top - info_height / 2,
+            info_width,
+            info_height,
+        )
         if self.rack:
             item = self.rack[self.current_index]
-            selected_sprite = item.sprite
-            self.selected_fabric_text.text = item.fabric.upper()
-            self.selected_fabric_text.color = THRIFTING_TITLE_COLOR
-            self.selected_fabric_text.x = selected_sprite.center_x
-            self.selected_fabric_text.y = max(
-                content_bottom + self.layout.sy(86),
-                selected_sprite.center_y - (selected_sprite.height / 2) - self.layout.sy(22),
-            )
-            self.eco_status_text.text = "ECO + BONUS" if item.eco else "FAST FASHION PENALTY"
-            self.eco_status_text.color = THRIFTING_SUCCESS_COLOR if item.eco else THRIFTING_WARNING_COLOR
-            self.eco_status_text.x = selected_sprite.center_x
-            self.eco_status_text.y = max(
-                content_bottom + self.layout.sy(68),
-                self.selected_fabric_text.y - self.layout.sy(18),
-            )
-            self.price_text.text = f"Price: ${item.price}"
-            self.price_text.x = (content_left + content_right) / 2
-            self.price_text.y = min(content_top - self.layout.sy(36), content_bottom + self.layout.sy(120))
-            self.detail_fabric_text.text = item.fabric
-            self.detail_fabric_text.x = (content_left + content_right) / 2
-            self.detail_fabric_text.y = self.price_text.y - self.layout.sy(18)
+            self.info_box.set_item(item)
+        else:
+            self.info_box.set_item(None)
 
     def _select_next(self, direction: int) -> None:
         if not self.rack:
@@ -2330,10 +2281,6 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         if not self._game_ready:
             return
         self._sync_background()
-        self.selected_fabric_text.font_size = layout.ss(12)
-        self.eco_status_text.font_size = layout.ss(12)
-        self.price_text.font_size = layout.ss(16)
-        self.detail_fabric_text.font_size = layout.ss(14)
         self.money_text.font_size = layout.ss(16)
         self.score_text.font_size = layout.ss(16)
         self.instructions_text.font_size = layout.ss(14)
@@ -2353,13 +2300,8 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
     def on_draw(self) -> None:
         super().on_draw()
         self.background_sprite.draw()
-        content_left, content_right, content_bottom, content_top = self._content_bounds()
         self.sprite_list.draw()
-        if self.rack:
-            self.selected_fabric_text.draw()
-            self.eco_status_text.draw()
-            self.price_text.draw()
-            self.detail_fabric_text.draw()
+        self.info_box.draw()
         self.money_text.draw()
         self.score_text.draw()
         self.instructions_text.draw()
