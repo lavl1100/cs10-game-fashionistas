@@ -2626,7 +2626,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
         progress_x = sidebar_left + self.layout.sx(14)
         progress_y = day_label_y - self.layout.sy(20)
-        progress_width = sidebar_right - sidebar_left - self.layout.sx(28)
+        progress_width = max(0.0, sidebar_right - sidebar_left - self.layout.sx(28))
         _draw_pill(
             progress_x,
             progress_y,
@@ -2655,7 +2655,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             anchor_x="center",
             anchor_y="center",
         ).draw()
-        pip_w = min(self.layout.sx(18), (sidebar_right - sidebar_left - self.layout.sx(24)) / max(1, self.max_energy))
+        pip_w = max(0.0, min(self.layout.sx(18), (sidebar_right - sidebar_left - self.layout.sx(24)) / max(1, self.max_energy)))
         total_pips = pip_w * self.max_energy
         start_x = sidebar_left + (sidebar_right - sidebar_left - total_pips) / 2
         pips_y = energy_label_y - self.layout.sy(18)
@@ -2711,6 +2711,8 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
     def _draw_feed(self) -> None:
         feed_left, feed_right, feed_bottom, feed_top = self._feed_bounds()
+        if feed_right <= feed_left or feed_top <= feed_bottom:
+            return
         arcade.draw_lrbt_rectangle_filled(
             feed_left,
             feed_right,
@@ -2755,7 +2757,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
                 continue
             if y < feed_bottom - self.layout.sy(12):
                 break
-            self._draw_post_card(post, feed_left + self.layout.sx(4), y - card_height, feed_right - feed_left - self.layout.sx(8), card_height, slot)
+            self._draw_post_card(post, feed_left + self.layout.sx(4), y - card_height, max(0.0, feed_right - feed_left - self.layout.sx(8)), card_height, slot)
             y -= card_height + self.layout.sy(SOCIAL_MEDIA_CARD_GAP)
 
     def _draw_post_card(
