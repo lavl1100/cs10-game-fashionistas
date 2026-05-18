@@ -2848,22 +2848,29 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         content_top = feed_top - self.layout.sy(44)
         content_bottom = feed_bottom + self.layout.sy(12)
         y = content_top + self.scroll
-        for slot, post in enumerate(self.posts):
-            card_bottom = y - card_height
-            if y > feed_top + self.layout.sy(8):
-                y -= card_height + card_gap
-                continue
-            if card_bottom < content_bottom:
-                break
-            self._draw_post_card(
-                post,
-                feed_left + self.layout.sx(4),
-                card_bottom,
-                max(0.0, feed_right - feed_left - self.layout.sx(8)),
-                card_height,
-                slot,
+        window = self.window
+        previous_scissor = window.ctx.scissor if window is not None else None
+        if window is not None:
+            window.ctx.scissor = (
+                int(feed_left),
+                int(content_bottom),
+                int(max(0.0, feed_right - feed_left)),
+                int(max(0.0, content_top - content_bottom)),
             )
-            y -= card_height + card_gap
+        try:
+            for slot, post in enumerate(self.posts):
+                self._draw_post_card(
+                    post,
+                    feed_left + self.layout.sx(4),
+                    y - card_height,
+                    max(0.0, feed_right - feed_left - self.layout.sx(8)),
+                    card_height,
+                    slot,
+                )
+                y -= card_height + card_gap
+        finally:
+            if window is not None:
+                window.ctx.scissor = previous_scissor
 
     def _draw_post_card(
         self,
