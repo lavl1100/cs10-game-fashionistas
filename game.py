@@ -2374,6 +2374,12 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         else:
             self._notify("Day finished - 10 minute cooldown started ♡", SOCIAL_MEDIA_CARD_MUTED)
 
+    def _handle_energy_depleted(self) -> None:
+        self._notify(
+            "Out of energy - keep going until the timer ends ♡",
+            SOCIAL_MEDIA_CARD_MUTED,
+        )
+
     def _finish_cooldown(self) -> None:
         self.energy_state.cooldown_ends_at = 0.0
         self.day += 1
@@ -2486,7 +2492,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             return
 
         if self.energy <= 0:
-            self._start_cooldown("energy")
+            self._handle_energy_depleted()
             self.composing = False
             return
 
@@ -2527,7 +2533,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.composing = False
         self.hover_idx = -1
         if self.energy <= 0:
-            self._start_cooldown("energy")
+            self._handle_energy_depleted()
 
     def _sync_sidebar_controls(self) -> None:
         sidebar_left, sidebar_right, sidebar_bottom, sidebar_top = self._sidebar_bounds()
