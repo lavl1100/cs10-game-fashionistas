@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+import math
 from pathlib import Path
 import random
 import time
 import warnings
+from enum import Enum
 from typing import Callable, Optional
 
 warnings.filterwarnings(
@@ -116,6 +118,29 @@ THRIFTING_TRACK_COLOR = THEME_LAVENDER
 THRIFTING_TITLE_COLOR = THEME_TEXT_PURPLE
 THRIFTING_WARNING_COLOR = THEME_TEXT_PURPLE
 THRIFTING_SUCCESS_COLOR = THEME_DEEP_PURPLE
+
+SOCIAL_MEDIA_WINDOW_FILL = THEME_PALE_PINK
+SOCIAL_MEDIA_WINDOW_HEADER = THEME_LAVENDER
+SOCIAL_MEDIA_WINDOW_BORDER = THEME_DEEP_PURPLE
+SOCIAL_MEDIA_CONTENT_FILL = (255, 248, 252)
+SOCIAL_MEDIA_SIDEBAR_FILL = (255, 252, 255)
+SOCIAL_MEDIA_SIDEBAR_STRIPE_A = (255, 246, 251)
+SOCIAL_MEDIA_SIDEBAR_STRIPE_B = (255, 238, 247)
+SOCIAL_MEDIA_CARD_FILL = (255, 255, 255)
+SOCIAL_MEDIA_CARD_BORDER = THEME_SOFT_LILAC
+SOCIAL_MEDIA_CARD_TEXT = THEME_TEXT_PURPLE
+SOCIAL_MEDIA_CARD_MUTED = (172, 129, 169)
+SOCIAL_MEDIA_CARD_GOLD = (255, 203, 92)
+SOCIAL_MEDIA_CARD_LIFE_TRACK = (251, 221, 235)
+SOCIAL_MEDIA_CARD_LIFE_FILL = THEME_LAVENDER
+SOCIAL_MEDIA_MODAL_OVERLAY = (255, 226, 239, 180)
+SOCIAL_MEDIA_CARD_HEIGHT = 148
+SOCIAL_MEDIA_CARD_GAP = 10
+SOCIAL_MEDIA_SIDEBAR_MIN_WIDTH = 236
+SOCIAL_MEDIA_SIDEBAR_MAX_WIDTH = 292
+SOCIAL_MEDIA_COMPOSE_WIDTH = 650
+SOCIAL_MEDIA_COMPOSE_HEIGHT = 468
+SOCIAL_MEDIA_MAX_NOTIFICATIONS = 5
 
 PRESS_ANIMATION_TIME = 0.18
 PRESS_SHRINK_SCALE = 0.86
@@ -399,6 +424,42 @@ def _make_panel(
     sprite.center_y = center_y
     sprite.alpha = alpha
     return sprite
+
+
+def _lerp_color(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+    t = max(0.0, min(1.0, t))
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+def _draw_pill(
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    fill: tuple[int, int, int],
+    border: tuple[int, int, int],
+) -> None:
+    radius = height / 2
+    if width <= height:
+        arcade.draw_circle_filled(x + width / 2, y + radius, radius, fill)
+        arcade.draw_circle_outline(x + width / 2, y + radius, radius, border, 1)
+        return
+
+    arcade.draw_lrbt_rectangle_filled(x + radius, x + width - radius, y, y + height, fill)
+    arcade.draw_circle_filled(x + radius, y + radius, radius, fill)
+    arcade.draw_circle_filled(x + width - radius, y + radius, radius, fill)
+    arcade.draw_circle_outline(x + radius, y + radius, radius, border, 1)
+    arcade.draw_circle_outline(x + width - radius, y + radius, radius, border, 1)
+    arcade.draw_line(x + radius, y, x + width - radius, y, border, 1)
+    arcade.draw_line(x + radius, y + height, x + width - radius, y + height, border, 1)
+
+
+def _format_compact_count(value: int) -> str:
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f}M"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f}K"
+    return str(value)
 
 
 class DrawableSprite:
@@ -1218,6 +1279,12 @@ class HomeView(arcade.View):
             self._set_button_active("social media", False)
         if label == "social media":
             self._set_button_active(label, True)
+            self.active_window = SocialMediaGameOverlay(
+                self.layout,
+                lambda: self._close_window(label),
+                self.music,
+            )
+            return
         self.active_window = ComputerWindowOverlay(
             self.layout,
             title=label.title(),
@@ -1299,6 +1366,14 @@ class HomeView(arcade.View):
     ) -> None:
         if self.active_window is not None:
             self.active_window.on_mouse_drag(x, y, dx, dy, buttons, modifiers)
+
+    def on_mouse_scroll(self, x: float, y: float, scroll_x: float, scroll_y: float) -> None:
+        if self.active_window is not None:
+            self.active_window.on_mouse_scroll(x, y, scroll_x, scroll_y)
+
+    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float) -> None:
+        if self.active_window is not None:
+            self.active_window.on_mouse_motion(x, y, dx, dy)
 
     def on_mouse_release(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
@@ -1941,12 +2016,1061 @@ class ComputerWindowOverlay:
             self.is_dragging = False
             self.is_adjusting_volume = False
 
+    def on_mouse_scroll(self, x: float, y: float, scroll_x: float, scroll_y: float) -> bool:
+        return False
+
+    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float) -> None:
+        pass
+
     def on_key_press(self, key: int, modifiers: int) -> None:
         if key == arcade.key.ESCAPE:
             self._close()
 
     def close(self) -> None:
         self._close()
+
+    def on_resize(self, width: float, height: float) -> None:
+        self.update_layout(GameLayout(width, height))
+
+
+class SocialMediaPostType(Enum):
+    OOTD = (
+        "OOTD",
+        ((218, 198, 250), (188, 168, 222), (255, 255, 255)),
+        0.15,
+        0.20,
+        80,
+        "Thrifted outfit check-in with reliable reach.",
+        1,
+    )
+    HAUL = (
+        "HAUL",
+        ((186, 221, 248), (156, 191, 220), (255, 255, 255)),
+        0.18,
+        0.25,
+        120,
+        "Secondhand haul with strong discovery potential.",
+        2,
+    )
+    TUTORIAL = (
+        "TUTORIAL",
+        ((188, 238, 218), (158, 208, 188), (255, 255, 255)),
+        0.10,
+        0.18,
+        110,
+        "Upcycling guide that builds trust over time.",
+        4,
+    )
+    ARTICLE = (
+        "ARTICLE",
+        ((255, 178, 210), (225, 148, 180), (255, 255, 255)),
+        0.06,
+        0.12,
+        150,
+        "Slow fashion think-piece with long shelf life.",
+        5,
+    )
+    REVIEW = (
+        "REVIEW",
+        ((255, 214, 188), (225, 182, 158), (255, 255, 255)),
+        0.20,
+        0.15,
+        90,
+        "Brand review that can spark a quick conversation.",
+        2,
+    )
+
+    def __init__(
+        self,
+        label: str,
+        bar: tuple[tuple[int, int, int], tuple[int, int, int], tuple[int, int, int]],
+        viral_chance: float,
+        base_growth: float,
+        max_age: float,
+        desc: str,
+        eco_points: int,
+    ) -> None:
+        self.label = label
+        self.bar = bar
+        self.viral_chance = viral_chance
+        self.base_growth = base_growth
+        self.max_age = max_age
+        self.desc = desc
+        self.eco_points = eco_points
+
+    @property
+    def color(self) -> tuple[int, int, int]:
+        return self.bar[0]
+
+    @property
+    def border(self) -> tuple[int, int, int]:
+        return self.bar[1]
+
+    @property
+    def dot_color(self) -> tuple[int, int, int]:
+        return self.bar[2]
+
+
+SOCIAL_MEDIA_TEMPLATES: dict[SocialMediaPostType, list[str]] = {
+    SocialMediaPostType.OOTD: [
+        "thrifted this whole fit and i am very normal about it ♡",
+        "today's outfit is 100% secondhand and i feel unstoppable",
+        "tiny closet, big vibe, no fast fashion needed",
+        "styled one vintage blazer three ways and now i'm attached",
+        "today's look: rescued, reworn, and fully serving",
+    ],
+    SocialMediaPostType.HAUL: [
+        "come thrift with me! everything under budget and full of charm",
+        "weekend haul: the best finds were definitely the weirdest ones",
+        "secondhand haul recap: a little chaos, a lot of treasure",
+        "what i pulled from the charity shop this week ♡",
+        "i went looking for one thing and came home with a whole vibe",
+    ],
+    SocialMediaPostType.TUTORIAL: [
+        "how i turned an old shirt into something i actually want to wear",
+        "upcycling basics: my favorite no-stress fixes for worn clothes",
+        "mending guide for beginners who want their clothes to last",
+        "simple diy repair trick that saved my favorite top",
+        "a tiny sewing project that made a huge difference",
+    ],
+    SocialMediaPostType.ARTICLE: [
+        "why slow fashion matters more than a trendy launch ever will",
+        "the hidden cost of cheap clothing, explained simply",
+        "what greenwashing looks like when brands get too polished",
+        "a quick breakdown of why textile waste keeps piling up",
+        "building a thoughtful wardrobe without falling for hype",
+    ],
+    SocialMediaPostType.REVIEW: [
+        "honest review: is this 'eco' brand actually worth the price?",
+        "i tested a sustainable label so you don't have to",
+        "reviewing a brand's claims, quality, and transparency",
+        "thrift comparison vs. fast fashion: the receipts are here",
+        "what i look for before i trust a clothing brand again",
+    ],
+}
+
+SOCIAL_MEDIA_MILESTONES = [
+    (250, "First Followers", "your feed found its first fans ♡"),
+    (1_000, "Style Spark", "people are starting to notice ♡"),
+    (5_000, "Trend Setter", "your posts are shaping the conversation ♡"),
+    (15_000, "Feed Favorite", "the algorithm is on your side ♡"),
+    (50_000, "Influence Icon", "your message is impossible to ignore ♡"),
+    (100_000, "Fashion Legend", "you changed the feed forever ♡"),
+]
+
+
+@dataclass
+class SocialMediaPost:
+    ptype: SocialMediaPostType
+    text: str
+    quality: float
+    likes: int = 0
+    shares: int = 0
+    comments: int = 0
+    age: float = 0.0
+    is_viral: bool = False
+    viral_mult: float = 1.0
+    viral_flash: float = 0.0
+    dead: bool = False
+
+    @property
+    def engagement(self) -> int:
+        return self.likes + self.shares * 3 + self.comments * 2
+
+    @property
+    def follower_rate(self) -> float:
+        return self.engagement * self.quality * self.viral_mult * 0.004
+
+    def tick(self, dt: float) -> None:
+        self.age += dt
+        if self.age >= self.ptype.max_age:
+            self.dead = True
+            return
+
+        decay = max(0.05, 1.0 - self.age / self.ptype.max_age)
+        rate = self.ptype.base_growth * self.quality * decay * self.viral_mult
+        if random.random() < rate * dt:
+            self.likes += random.randint(1, 15)
+            self.shares += random.randint(0, 4)
+            self.comments += random.randint(0, 5)
+
+        if self.viral_flash > 0:
+            self.viral_flash = max(0.0, self.viral_flash - dt)
+
+
+@dataclass
+class SocialMediaNotification:
+    text: str
+    timer: float
+    color: tuple[int, int, int]
+
+
+class SocialMediaGameOverlay(ComputerWindowOverlay):
+    """A social feed mini game embedded inside the computer window."""
+
+    def __init__(
+        self,
+        layout: GameLayout,
+        on_close: Callable[[], None],
+        music: Optional[BackgroundMusicPlaylist] = None,
+    ) -> None:
+        self._social_ready = False
+        self.followers = 100
+        self.day = 1
+        self.day_timer = 0.0
+        self.day_length = 60.0
+        self.energy = 10
+        self.max_energy = 10
+        self.posts_made = 0
+        self.viral_count = 0
+        self.eco_impact = 0
+        self.total_likes = 0
+        self.milestone_index = 0
+        self._followers_fraction = 0.0
+        self.posts: list[SocialMediaPost] = []
+        self.notifications: list[SocialMediaNotification] = []
+        self.post_types: list[SocialMediaPostType] = list(SocialMediaPostType)
+        self.scroll = 0.0
+        self.composing = False
+        self.hover_idx = -1
+        self.sidebar_post_button: Optional[SpriteButtonPanel] = None
+        self.compose_buttons: list[SpriteButtonPanel] = []
+        self.sidebar_title_text = arcade.Text(
+            "creator stats",
+            0,
+            0,
+            SOCIAL_MEDIA_CARD_TEXT,
+            layout.ss(18),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        )
+        self.feed_title_text = arcade.Text(
+            "your feed",
+            0,
+            0,
+            SOCIAL_MEDIA_CARD_MUTED,
+            layout.ss(18),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        )
+        self.empty_title_text = arcade.Text(
+            "nothing posted yet ♡",
+            0,
+            0,
+            SOCIAL_MEDIA_CARD_MUTED,
+            layout.ss(18),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        )
+        self.empty_hint_text = arcade.Text(
+            "press Space or tap POST to share your first look",
+            0,
+            0,
+            SOCIAL_MEDIA_CARD_MUTED,
+            layout.ss(12),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        )
+        self.compose_title_text = arcade.Text(
+            "what are you creating today? ♡",
+            0,
+            0,
+            SOCIAL_MEDIA_CARD_TEXT,
+            layout.ss(14),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        )
+        self.compose_hint_text = arcade.Text(
+            "click a button or press 1-5 ♡ ESC to cancel",
+            0,
+            0,
+            SOCIAL_MEDIA_CARD_MUTED,
+            layout.ss(10),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        )
+        super().__init__(layout, "Social Media", on_close, music)
+        self._social_ready = True
+        self.update_layout(layout)
+
+    def _window_size(self, layout: GameLayout) -> tuple[float, float]:
+        width = min(layout.width - layout.window_margin * 2, layout.sx(700))
+        height = min(layout.height - layout.window_margin * 2, layout.sy(520))
+        return max(layout.sx(560), width), max(layout.sy(420), height)
+
+    def _content_bounds(self) -> tuple[float, float, float, float]:
+        left, right, bottom, top = self._bounds()
+        return (
+            left + self.layout.sx(18),
+            right - self.layout.sx(18),
+            bottom + self.layout.sy(18),
+            top - self.layout.window_header_height - self.layout.sy(16),
+        )
+
+    def _sidebar_width(self) -> float:
+        content_left, content_right, _, _ = self._content_bounds()
+        content_width = max(0.0, content_right - content_left)
+        return max(
+            self.layout.sx(SOCIAL_MEDIA_SIDEBAR_MIN_WIDTH),
+            min(self.layout.sx(SOCIAL_MEDIA_SIDEBAR_MAX_WIDTH), content_width * 0.34),
+        )
+
+    def _feed_bounds(self) -> tuple[float, float, float, float]:
+        content_left, content_right, content_bottom, content_top = self._content_bounds()
+        sidebar_width = self._sidebar_width()
+        feed_left = content_left + sidebar_width + self.layout.sx(18)
+        return feed_left, content_right, content_bottom, content_top
+
+    def _sidebar_bounds(self) -> tuple[float, float, float, float]:
+        content_left, _, content_bottom, content_top = self._content_bounds()
+        sidebar_width = self._sidebar_width()
+        return content_left, content_left + sidebar_width, content_bottom, content_top
+
+    def _compose_modal_geometry(self) -> tuple[float, float, float, float]:
+        content_left, content_right, content_bottom, content_top = self._content_bounds()
+        content_width = content_right - content_left
+        content_height = content_top - content_bottom
+        width = min(self.layout.sx(SOCIAL_MEDIA_COMPOSE_WIDTH), content_width - self.layout.sx(24))
+        height = min(self.layout.sy(SOCIAL_MEDIA_COMPOSE_HEIGHT), content_height - self.layout.sy(24))
+        left = content_left + (content_width - width) / 2
+        bottom = content_bottom + (content_height - height) / 2
+        return left, bottom, width, height
+
+    def _compose_button_geometry(self) -> list[tuple[float, float, float, float]]:
+        modal_left, modal_bottom, modal_width, modal_height = self._compose_modal_geometry()
+        button_height = self.layout.sy(58)
+        gap = self.layout.sy(8)
+        count = len(self.post_types)
+        total = count * button_height + (count - 1) * gap
+        start_y = modal_bottom + modal_height - self.layout.sy(70) - total
+        button_left = modal_left + self.layout.sx(18)
+        button_width = modal_width - self.layout.sx(36)
+        geometries: list[tuple[float, float, float, float]] = []
+        for index in range(count):
+            button_bottom = start_y + (count - 1 - index) * (button_height + gap)
+            geometries.append((button_left, button_bottom, button_width, button_height))
+        return geometries
+
+    def _notify(self, text: str, color: tuple[int, int, int] = SOCIAL_MEDIA_CARD_TEXT) -> None:
+        self.notifications.append(SocialMediaNotification(text, 3.5, color))
+        if len(self.notifications) > SOCIAL_MEDIA_MAX_NOTIFICATIONS:
+            self.notifications.pop(0)
+
+    def _gain_followers(self, count: int) -> None:
+        if count <= 0:
+            return
+
+        self.followers += count
+        while self.milestone_index < len(SOCIAL_MEDIA_MILESTONES):
+            threshold, title, subtext = SOCIAL_MEDIA_MILESTONES[self.milestone_index]
+            if self.followers < threshold:
+                break
+            self._notify(f"♡  {title} — {subtext}", SOCIAL_MEDIA_CARD_GOLD)
+            self.milestone_index += 1
+            self.max_energy = min(20, self.max_energy + 2)
+
+    def _max_scroll(self) -> float:
+        _, _, feed_bottom, feed_top = self._feed_bounds()
+        visible_height = max(0.0, feed_top - feed_bottom - self.layout.sy(28))
+        total_height = len(self.posts) * (SOCIAL_MEDIA_CARD_HEIGHT + SOCIAL_MEDIA_CARD_GAP)
+        return max(0.0, total_height - visible_height)
+
+    def _clamp_scroll(self) -> None:
+        self.scroll = max(0.0, min(self.scroll, self._max_scroll()))
+
+    def _create_post(self, ptype: SocialMediaPostType) -> None:
+        if self.energy <= 0:
+            self._notify("No energy left - wait for tomorrow ♡", SOCIAL_MEDIA_CARD_MUTED)
+            self.composing = False
+            return
+
+        skill = min(0.8, math.log10(max(10, self.followers)) / 6.0)
+        quality = max(
+            0.05,
+            min(
+                1.0,
+                random.betavariate(
+                    1.0 + skill * 3.0,
+                    max(1.2, 4.0 - skill * 2.0),
+                ),
+            ),
+        )
+        text = random.choice(SOCIAL_MEDIA_TEMPLATES[ptype])
+        post = SocialMediaPost(ptype=ptype, text=text, quality=quality)
+        self.posts.insert(0, post)
+        self.posts = self.posts[:20]
+        self.posts_made += 1
+        self.energy -= 1
+        self.scroll = 0.0
+        self.eco_impact += ptype.eco_points
+        quality_label = (
+            "serving sustainability ♡"
+            if quality > 0.70
+            else "pretty decent ♡"
+            if quality > 0.40
+            else "a little weak..."
+        )
+        accent = (
+            SOCIAL_MEDIA_CARD_LIFE_FILL
+            if quality > 0.70
+            else SOCIAL_MEDIA_CARD_GOLD
+            if quality > 0.40
+            else SOCIAL_MEDIA_CARD_BORDER
+        )
+        self._notify(f"Posted  |  {quality_label}  ({quality:.0%})", accent)
+        self.composing = False
+        self.hover_idx = -1
+
+    def _sync_sidebar_controls(self) -> None:
+        sidebar_left, sidebar_right, sidebar_bottom, sidebar_top = self._sidebar_bounds()
+        button_width = sidebar_right - sidebar_left - self.layout.sx(28)
+        button_height = self.layout.sy(38)
+        button_center_x = (sidebar_left + sidebar_right) / 2
+        button_center_y = sidebar_bottom + self.layout.sy(34)
+        if self.sidebar_post_button is None:
+            self.sidebar_post_button = SpriteButtonPanel(
+                self.layout,
+                "POST",
+                button_center_x,
+                button_center_y,
+                button_width,
+                button_height,
+                (255, 160, 198),
+                self._open_compose,
+                text_color=(255, 255, 255),
+                text_size=self.layout.ss(16),
+            )
+        else:
+            self.sidebar_post_button.update_layout(
+                self.layout,
+                button_center_x,
+                button_center_y,
+                button_width,
+                button_height,
+                self.layout.ss(16),
+            )
+
+        geometries = self._compose_button_geometry()
+        if not self.compose_buttons:
+            for index, ptype in enumerate(self.post_types):
+                left, bottom, width, height = geometries[index]
+                label = ptype.label
+                button = SpriteButtonPanel(
+                    self.layout,
+                    label,
+                    left + width / 2,
+                    bottom + height / 2,
+                    width,
+                    height,
+                    ptype.color,
+                    lambda ptype=ptype: self._create_post(ptype),
+                    text_color=SOCIAL_MEDIA_CARD_TEXT,
+                    text_size=self.layout.ss(12),
+                )
+                self.compose_buttons.append(button)
+        else:
+            for index, button in enumerate(self.compose_buttons):
+                left, bottom, width, height = geometries[index]
+                button.update_layout(
+                    self.layout,
+                    left + width / 2,
+                    bottom + height / 2,
+                    width,
+                    height,
+                    self.layout.ss(12),
+                )
+
+    def _open_compose(self) -> None:
+        self.composing = True
+        self.hover_idx = -1
+
+    def _close_compose(self) -> None:
+        self.composing = False
+        self.hover_idx = -1
+
+    def update_layout(self, layout: GameLayout) -> None:
+        super().update_layout(layout)
+        if not self._social_ready:
+            return
+
+        self.window_width, self.window_height = self._window_size(layout)
+        self._set_center(layout.width / 2, layout.height / 2 - layout.sy(8))
+        self.sidebar_title_text.font_size = layout.ss(18)
+        self.feed_title_text.font_size = layout.ss(18)
+        self.empty_title_text.font_size = layout.ss(18)
+        self.empty_hint_text.font_size = layout.ss(12)
+        self.compose_title_text.font_size = layout.ss(14)
+        self.compose_hint_text.font_size = layout.ss(10)
+        self._sync_sidebar_controls()
+        self._clamp_scroll()
+
+    def _draw_sidebar(self) -> None:
+        sidebar_left, sidebar_right, sidebar_bottom, sidebar_top = self._sidebar_bounds()
+        stripe_width = max(1.0, self.layout.sx(14))
+        stripe_count = int(math.ceil((sidebar_right - sidebar_left) / stripe_width))
+        for index in range(stripe_count):
+            stripe_x = sidebar_left + index * stripe_width
+            color = (
+                SOCIAL_MEDIA_SIDEBAR_STRIPE_A
+                if index % 2 == 0
+                else SOCIAL_MEDIA_SIDEBAR_STRIPE_B
+            )
+            arcade.draw_lrbt_rectangle_filled(
+                stripe_x,
+                min(sidebar_right, stripe_x + stripe_width),
+                sidebar_bottom,
+                sidebar_top,
+                color,
+            )
+
+        arcade.draw_lrbt_rectangle_outline(
+            sidebar_left,
+            sidebar_right,
+            sidebar_bottom,
+            sidebar_top,
+            SOCIAL_MEDIA_CARD_BORDER,
+            2,
+        )
+        self.sidebar_title_text.x = sidebar_left + self.layout.sx(14)
+        self.sidebar_title_text.y = sidebar_top - self.layout.sy(18)
+        self.sidebar_title_text.draw()
+
+        follower_label_y = sidebar_top - self.layout.sy(52)
+        follower_value_y = follower_label_y - self.layout.sy(30)
+        day_label_y = follower_value_y - self.layout.sy(42)
+        energy_label_y = day_label_y - self.layout.sy(38)
+
+        arcade.Text(
+            "followers",
+            sidebar_left + self.layout.sx(18),
+            follower_label_y,
+            SOCIAL_MEDIA_CARD_MUTED,
+            self.layout.ss(10),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        ).draw()
+        arcade.Text(
+            _format_compact_count(self.followers),
+            sidebar_left + (sidebar_right - sidebar_left) / 2,
+            follower_value_y,
+            SOCIAL_MEDIA_CARD_TEXT,
+            self.layout.ss(32),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        ).draw()
+
+        arcade.Text(
+            f"Season {(self.day - 1) // 7 + 1}  ♡  Day {(self.day - 1) % 7 + 1}",
+            sidebar_left + (sidebar_right - sidebar_left) / 2,
+            day_label_y,
+            SOCIAL_MEDIA_CARD_MUTED,
+            self.layout.ss(10),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        ).draw()
+
+        progress_x = sidebar_left + self.layout.sx(14)
+        progress_y = day_label_y - self.layout.sy(20)
+        progress_width = sidebar_right - sidebar_left - self.layout.sx(28)
+        _draw_pill(
+            progress_x,
+            progress_y,
+            progress_width,
+            self.layout.sy(10),
+            SOCIAL_MEDIA_CARD_LIFE_TRACK,
+            SOCIAL_MEDIA_CARD_BORDER,
+        )
+        fill_width = max(10.0, progress_width * min(1.0, self.day_timer / self.day_length))
+        _draw_pill(
+            progress_x,
+            progress_y,
+            fill_width,
+            self.layout.sy(10),
+            (255, 160, 198),
+            (225, 125, 165),
+        )
+
+        arcade.Text(
+            "energy",
+            sidebar_left + (sidebar_right - sidebar_left) / 2,
+            energy_label_y,
+            SOCIAL_MEDIA_CARD_MUTED,
+            self.layout.ss(10),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        ).draw()
+        pip_w = min(self.layout.sx(18), (sidebar_right - sidebar_left - self.layout.sx(24)) / max(1, self.max_energy))
+        total_pips = pip_w * self.max_energy
+        start_x = sidebar_left + (sidebar_right - sidebar_left - total_pips) / 2
+        pips_y = energy_label_y - self.layout.sy(18)
+        for index in range(self.max_energy):
+            cx = start_x + (index + 0.5) * pip_w
+            fill = (255, 160, 198) if index < self.energy else (255, 229, 238)
+            arcade.draw_circle_filled(cx, pips_y, self.layout.ss(5), fill)
+            arcade.draw_circle_outline(cx, pips_y, self.layout.ss(5), (225, 125, 165), 1)
+
+        stats_top = pips_y - self.layout.sy(22)
+        stats_rows = [
+            ("posts made", str(self.posts_made)),
+            ("eco impact", str(self.eco_impact)),
+            ("active posts", str(len(self.posts))),
+            ("total likes", f"{self.total_likes:,}"),
+        ]
+        row_y = stats_top
+        for label, value in stats_rows:
+            arcade.Text(
+                label,
+                sidebar_left + self.layout.sx(14),
+                row_y,
+                SOCIAL_MEDIA_CARD_MUTED,
+                self.layout.ss(10),
+                font_name=UI_FONT_NAME,
+                anchor_x="left",
+                anchor_y="center",
+            ).draw()
+            arcade.Text(
+                value,
+                sidebar_right - self.layout.sx(14),
+                row_y,
+                SOCIAL_MEDIA_CARD_TEXT,
+                self.layout.ss(10),
+                font_name=UI_FONT_NAME,
+                anchor_x="right",
+                anchor_y="center",
+            ).draw()
+            row_y -= self.layout.sy(22)
+
+        if self.sidebar_post_button is not None:
+            self.sidebar_post_button.draw()
+        arcade.Text(
+            "Space or tap POST",
+            sidebar_left + (sidebar_right - sidebar_left) / 2,
+            sidebar_bottom + self.layout.sy(12),
+            SOCIAL_MEDIA_CARD_MUTED,
+            self.layout.ss(8),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+        ).draw()
+
+    def _draw_feed(self) -> None:
+        feed_left, feed_right, feed_bottom, feed_top = self._feed_bounds()
+        arcade.draw_lrbt_rectangle_filled(
+            feed_left,
+            feed_right,
+            feed_bottom,
+            feed_top,
+            SOCIAL_MEDIA_CONTENT_FILL,
+        )
+        arcade.draw_lrbt_rectangle_outline(
+            feed_left,
+            feed_right,
+            feed_bottom,
+            feed_top,
+            SOCIAL_MEDIA_CARD_BORDER,
+            2,
+        )
+        self.feed_title_text.x = feed_left + self.layout.sx(8)
+        self.feed_title_text.y = feed_top - self.layout.sy(16)
+        self.feed_title_text.draw()
+        arcade.draw_line(
+            feed_left,
+            feed_top - self.layout.sy(28),
+            feed_right,
+            feed_top - self.layout.sy(28),
+            SOCIAL_MEDIA_CARD_BORDER,
+            1,
+        )
+
+        if not self.posts:
+            self.empty_title_text.x = (feed_left + feed_right) / 2
+            self.empty_title_text.y = (feed_bottom + feed_top) / 2 + self.layout.sy(18)
+            self.empty_title_text.draw()
+            self.empty_hint_text.x = (feed_left + feed_right) / 2
+            self.empty_hint_text.y = (feed_bottom + feed_top) / 2 - self.layout.sy(6)
+            self.empty_hint_text.draw()
+            return
+
+        y = feed_top - self.layout.sy(44) + self.scroll
+        for slot, post in enumerate(self.posts):
+            card_height = self.layout.sy(SOCIAL_MEDIA_CARD_HEIGHT)
+            if y - card_height > feed_top + self.layout.sy(8):
+                y -= card_height + self.layout.sy(SOCIAL_MEDIA_CARD_GAP)
+                continue
+            if y < feed_bottom - self.layout.sy(12):
+                break
+            self._draw_post_card(post, feed_left + self.layout.sx(4), y - card_height, feed_right - feed_left - self.layout.sx(8), card_height, slot)
+            y -= card_height + self.layout.sy(SOCIAL_MEDIA_CARD_GAP)
+
+    def _draw_post_card(
+        self,
+        post: SocialMediaPost,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        slot: int,
+    ) -> None:
+        bar_fill, bar_border, dot_color = post.ptype.bar
+        bar_height = self.layout.sy(22)
+        body_fill = SOCIAL_MEDIA_CARD_FILL
+        if post.viral_flash > 0:
+            body_fill = _lerp_color(SOCIAL_MEDIA_CARD_FILL, bar_fill, min(1.0, (post.viral_flash % 0.4) / 0.4 * 0.25))
+
+        shadow_offset = self.layout.sx(3)
+        arcade.draw_lrbt_rectangle_filled(
+            x + shadow_offset,
+            x + width + shadow_offset,
+            y - shadow_offset,
+            y + height - shadow_offset,
+            (217, 192, 218),
+        )
+        arcade.draw_lrbt_rectangle_filled(x, x + width, y, y + height, body_fill)
+        arcade.draw_lrbt_rectangle_outline(x, x + width, y, y + height, bar_border, 2)
+        arcade.draw_lrbt_rectangle_filled(x, x + width, y + height - bar_height, y + height, bar_fill)
+        arcade.draw_line(x, y + height - bar_height, x + width, y + height - bar_height, bar_border, 1)
+        for index in range(3):
+            dot_x = x + self.layout.sx(10) + index * self.layout.sx(13)
+            dot_y = y + height - bar_height / 2
+            arcade.draw_circle_filled(dot_x, dot_y, self.layout.ss(3.5), dot_color)
+            arcade.draw_circle_outline(dot_x, dot_y, self.layout.ss(3.5), bar_border, 1)
+
+        arcade.Text(
+            post.ptype.label,
+            x + width / 2,
+            y + height - bar_height / 2,
+            SOCIAL_MEDIA_CARD_TEXT,
+            self.layout.ss(10),
+            font_name=UI_FONT_NAME,
+            anchor_x="center",
+            anchor_y="center",
+            bold=True,
+        ).draw()
+
+        if post.is_viral:
+            pill_w = self.layout.sx(60)
+            pill_h = bar_height - self.layout.sy(6)
+            pill_x = x + width - pill_w - self.layout.sx(8)
+            pill_y = y + height - bar_height + self.layout.sy(3)
+            _draw_pill(pill_x, pill_y, pill_w, pill_h, SOCIAL_MEDIA_CARD_GOLD, (200, 160, 50))
+            arcade.Text(
+                "VIRAL",
+                pill_x + pill_w / 2,
+                pill_y + pill_h / 2,
+                SOCIAL_MEDIA_CARD_TEXT,
+                self.layout.ss(8),
+                font_name=UI_FONT_NAME,
+                anchor_x="center",
+                anchor_y="center",
+                bold=True,
+            ).draw()
+
+        short_text = post.text[:68] + ("..." if len(post.text) > 68 else "")
+        arcade.Text(
+            short_text,
+            x + self.layout.sx(12),
+            y + height - bar_height - self.layout.sy(18),
+            SOCIAL_MEDIA_CARD_TEXT,
+            self.layout.ss(12),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        ).draw()
+
+        stars = max(1, round(post.quality * 5))
+        arcade.Text(
+            "★" * stars + "☆" * (5 - stars),
+            x + self.layout.sx(12),
+            y + height - bar_height - self.layout.sy(42),
+            SOCIAL_MEDIA_CARD_GOLD,
+            self.layout.ss(12),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        ).draw()
+
+        arcade.draw_line(
+            x + self.layout.sx(10),
+            y + self.layout.sy(50),
+            x + width - self.layout.sx(10),
+            y + self.layout.sy(50),
+            SOCIAL_MEDIA_CARD_BORDER,
+            1,
+        )
+        arcade.Text(
+            f"♡ {post.likes:,}",
+            x + self.layout.sx(12),
+            y + self.layout.sy(34),
+            SOCIAL_MEDIA_CARD_MUTED,
+            self.layout.ss(10),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        ).draw()
+        arcade.Text(
+            f"↺ {post.shares:,}",
+            x + self.layout.sx(112),
+            y + self.layout.sy(34),
+            SOCIAL_MEDIA_CARD_MUTED,
+            self.layout.ss(10),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        ).draw()
+        arcade.Text(
+            f"✉ {post.comments:,}",
+            x + self.layout.sx(212),
+            y + self.layout.sy(34),
+            SOCIAL_MEDIA_CARD_MUTED,
+            self.layout.ss(10),
+            font_name=UI_FONT_NAME,
+            anchor_x="left",
+            anchor_y="center",
+        ).draw()
+
+        remaining = max(0.0, 1.0 - post.age / post.ptype.max_age)
+        track_x = x + self.layout.sx(12)
+        track_y = y + self.layout.sy(8)
+        track_w = width - self.layout.sx(24)
+        _draw_pill(track_x, track_y, track_w, self.layout.sy(8), SOCIAL_MEDIA_CARD_LIFE_TRACK, SOCIAL_MEDIA_CARD_BORDER)
+        if remaining > 0.02:
+            fill_w = max(self.layout.sx(8), track_w * remaining)
+            _draw_pill(track_x, track_y, fill_w, self.layout.sy(8), _lerp_color(SOCIAL_MEDIA_CARD_BORDER, bar_fill, remaining), bar_border)
+
+    def _draw_notifications(self) -> None:
+        feed_left, feed_right, feed_bottom, feed_top = self._feed_bounds()
+        y = feed_top - self.layout.sy(22)
+        for index, notif in enumerate(reversed(self.notifications[-5:])):
+            alpha = int(min(1.0, notif.timer) * 255)
+            bg_alpha = int(min(1.0, notif.timer) * 210)
+            text_width = len(notif.text) * 7 + 28
+            _draw_pill(
+                feed_right - text_width - self.layout.sx(12),
+                y - self.layout.sy(5),
+                text_width,
+                self.layout.sy(22),
+                (255, 230, 240, bg_alpha),
+                (235, 185, 210, bg_alpha),
+            )
+            arcade.Text(
+                notif.text,
+                feed_right - self.layout.sx(16),
+                y + self.layout.sy(5),
+                (*notif.color[:3], alpha),
+                self.layout.ss(11),
+                font_name=UI_FONT_NAME,
+                anchor_x="right",
+                anchor_y="center",
+            ).draw()
+            y -= self.layout.sy(28)
+
+    def _draw_compose_modal(self) -> None:
+        modal_left, modal_bottom, modal_width, modal_height = self._compose_modal_geometry()
+        content_left, content_right, content_bottom, content_top = self._content_bounds()
+        arcade.draw_lrbt_rectangle_filled(
+            content_left,
+            content_right,
+            content_bottom,
+            content_top,
+            SOCIAL_MEDIA_MODAL_OVERLAY,
+        )
+        arcade.draw_lrbt_rectangle_filled(
+            modal_left + self.layout.sx(3),
+            modal_left + modal_width + self.layout.sx(3),
+            modal_bottom - self.layout.sy(3),
+            modal_bottom + modal_height - self.layout.sy(3),
+            (217, 192, 218),
+        )
+        arcade.draw_lrbt_rectangle_filled(
+            modal_left,
+            modal_left + modal_width,
+            modal_bottom,
+            modal_bottom + modal_height,
+            SOCIAL_MEDIA_CARD_FILL,
+        )
+        arcade.draw_lrbt_rectangle_outline(
+            modal_left,
+            modal_left + modal_width,
+            modal_bottom,
+            modal_bottom + modal_height,
+            SOCIAL_MEDIA_WINDOW_BORDER,
+            2,
+        )
+
+        self.compose_title_text.x = modal_left + modal_width / 2
+        self.compose_title_text.y = modal_bottom + modal_height - self.layout.sy(16)
+        self.compose_title_text.draw()
+        self.compose_hint_text.x = modal_left + modal_width / 2
+        self.compose_hint_text.y = modal_bottom + modal_height - self.layout.sy(38)
+        self.compose_hint_text.draw()
+
+        geometries = self._compose_button_geometry()
+        for index, (button, geometry) in enumerate(zip(self.compose_buttons, geometries)):
+            left, bottom, width, height = geometry
+            button.draw()
+            if self.hover_idx == index:
+                arcade.draw_lrbt_rectangle_outline(
+                    left,
+                    left + width,
+                    bottom,
+                    bottom + height,
+                    button.fill_color,
+                    3,
+                )
+
+    def on_update(self, delta_time: float) -> None:
+        if not self._social_ready:
+            return
+
+        dt = min(delta_time, 0.1)
+        self.day_timer += dt
+        if self.day_timer >= self.day_length:
+            self.day_timer -= self.day_length
+            self.day += 1
+            self.energy = self.max_energy
+            self._notify(f"Day {self.day} ♡ energy restored!", (255, 160, 198))
+
+        total_rate = 0.0
+        for post in self.posts:
+            post.tick(dt)
+            if post.dead:
+                continue
+            if not post.is_viral and random.random() < post.ptype.viral_chance * dt:
+                post.is_viral = True
+                post.viral_mult = random.uniform(3.0, 9.0)
+                post.viral_flash = 2.5
+                self.viral_count += 1
+                self._notify(
+                    f"♡  {post.ptype.label} went VIRAL! ({post.viral_mult:.1f}x)",
+                    SOCIAL_MEDIA_CARD_GOLD,
+                )
+            total_rate += post.follower_rate
+
+        self._followers_fraction += total_rate * dt
+        if self._followers_fraction >= 1.0:
+            gained = int(self._followers_fraction)
+            self._followers_fraction -= gained
+            self._gain_followers(gained)
+
+        if not self.posts and random.random() < 0.0005:
+            self.followers = max(0, self.followers - 1)
+
+        self.posts = [post for post in self.posts if not post.dead]
+        self.total_likes = sum(post.likes for post in self.posts)
+        for notif in self.notifications:
+            notif.timer -= dt
+        self.notifications = [notif for notif in self.notifications if notif.timer > 0]
+        self._clamp_scroll()
+
+    def on_draw(self) -> None:
+        super().on_draw()
+        content_left, content_right, content_bottom, content_top = self._content_bounds()
+        arcade.draw_lrbt_rectangle_filled(
+            content_left,
+            content_right,
+            content_bottom,
+            content_top,
+            SOCIAL_MEDIA_CONTENT_FILL,
+        )
+        arcade.draw_lrbt_rectangle_outline(
+            content_left,
+            content_right,
+            content_bottom,
+            content_top,
+            SOCIAL_MEDIA_CARD_BORDER,
+            2,
+        )
+        self._draw_sidebar()
+        self._draw_feed()
+        self._draw_notifications()
+        if self.composing:
+            self._draw_compose_modal()
+
+    def on_key_press(self, key: int, modifiers: int) -> None:
+        if key == arcade.key.ESCAPE:
+            if self.composing:
+                self._close_compose()
+            else:
+                self._close()
+            return
+
+        if self.composing:
+            key_map = {
+                arcade.key.KEY_1: 0,
+                arcade.key.KEY_2: 1,
+                arcade.key.KEY_3: 2,
+                arcade.key.KEY_4: 3,
+                arcade.key.KEY_5: 4,
+            }
+            if key in key_map and key_map[key] < len(self.post_types):
+                self._create_post(self.post_types[key_map[key]])
+            return
+
+        if key == arcade.key.SPACE:
+            self._open_compose()
+        elif key == arcade.key.UP:
+            self.scroll = max(0.0, self.scroll - 100)
+        elif key == arcade.key.DOWN:
+            self.scroll = min(self._max_scroll(), self.scroll + 100)
+
+    def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> bool:
+        if button != arcade.MOUSE_BUTTON_LEFT:
+            return False
+
+        if self.composing:
+            _, _, _, content_top = self._content_bounds()
+            if y > content_top:
+                return super().on_mouse_press(x, y, button, modifiers)
+            for index, button_panel in enumerate(self.compose_buttons):
+                if button_panel.hit_test(x, y):
+                    button_panel.press()
+                    self.hover_idx = index
+                    return True
+            return True
+
+        if self.sidebar_post_button is not None and self.sidebar_post_button.hit_test(x, y):
+            self.sidebar_post_button.press()
+            return True
+
+        return super().on_mouse_press(x, y, button, modifiers)
+
+    def on_mouse_release(self, x: float, y: float, button: int, modifiers: int) -> None:
+        if button != arcade.MOUSE_BUTTON_LEFT:
+            return
+
+        if self.sidebar_post_button is not None:
+            self.sidebar_post_button.release()
+        for button_panel in self.compose_buttons:
+            button_panel.release()
+        super().on_mouse_release(x, y, button, modifiers)
+
+    def on_mouse_scroll(self, x: float, y: float, scroll_x: float, scroll_y: float) -> bool:
+        if self.composing:
+            return True
+
+        self.scroll = max(0.0, min(self._max_scroll(), self.scroll - scroll_y * 35))
+        return True
+
+    def on_mouse_motion(self, x: float, y: float, dx: float, dy: float) -> None:
+        if not self.composing:
+            self.hover_idx = -1
+            return
+
+        for index, (left, bottom, width, height) in enumerate(self._compose_button_geometry()):
+            if left <= x <= left + width and bottom <= y <= bottom + height:
+                self.hover_idx = index
+                return
+        self.hover_idx = -1
 
     def on_resize(self, width: float, height: float) -> None:
         self.update_layout(GameLayout(width, height))
