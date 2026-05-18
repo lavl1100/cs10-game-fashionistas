@@ -81,6 +81,7 @@ ACTIVITY_MENU_BACK_BUTTON_WIDTH = 150
 ACTIVITY_MENU_BACK_BUTTON_HEIGHT = 52
 ACTIVITY_MENU_BACK_BUTTON_MARGIN = 24
 THRIFTING_BUTTON_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
+THRIFTING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
 THRIFTING_CLOTHING_IMAGE_PATHS = [
     ASSETS_DIR / "thriftingclothing.png",
     ASSETS_DIR / "thriftingclothing2.png",
@@ -1899,6 +1900,16 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         self._game_ready = False
         self.rack: list[ThriftItem] = []
         self.sprite_list = arcade.SpriteList()
+        self.background_sprite = DrawableSprite(
+            _make_sprite(
+                THRIFTING_BACKGROUND_IMAGE_PATH,
+                layout.width / 2,
+                layout.height / 2,
+                layout.width,
+                layout.height,
+                THRIFTING_CONTENT_FILL,
+            )
+        )
         self.current_index = 0
         self.target_offset = 0.0
         self.current_offset = 0.0
@@ -2024,7 +2035,7 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
     def _update_positions(self) -> None:
         content_left, content_right, content_bottom, content_top = self._content_bounds()
         center_x = (content_left + content_right) / 2
-        rack_y = content_bottom + (content_top - content_bottom) * 0.56
+        rack_y = content_bottom + (content_top - content_bottom) * 0.43
         spacing = self._rack_spacing(content_left, content_right)
         rack_count = len(self.rack)
         for index, item in enumerate(self.rack):
@@ -2037,7 +2048,7 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             scale = max(0.16, 0.30 - dist * 0.02)
             item.sprite.scale = scale
             item.sprite.alpha = max(120, int(255 - dist * 28))
-            item.sprite.center_y = rack_y + self.layout.sy(28) - dist * self.layout.sy(6)
+            item.sprite.center_y = rack_y + self.layout.sy(34) - dist * self.layout.sy(5)
         self._sync_text()
 
     def _sync_text(self) -> None:
@@ -2127,6 +2138,11 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         super().update_layout(layout)
         if not self._game_ready:
             return
+        content_left, content_right, content_bottom, content_top = self._content_bounds()
+        self.background_sprite.center_x = (content_left + content_right) / 2
+        self.background_sprite.center_y = (content_bottom + content_top) / 2
+        self.background_sprite.width = content_right - content_left
+        self.background_sprite.height = content_top - content_bottom
         self.selected_fabric_text.font_size = layout.ss(12)
         self.eco_status_text.font_size = layout.ss(12)
         self.price_text.font_size = layout.ss(16)
@@ -2152,30 +2168,8 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
 
     def on_draw(self) -> None:
         super().on_draw()
+        self.background_sprite.draw()
         content_left, content_right, content_bottom, content_top = self._content_bounds()
-        arcade.draw_lrbt_rectangle_filled(
-            content_left,
-            content_right,
-            content_bottom,
-            content_top,
-            THRIFTING_CONTENT_FILL,
-        )
-        arcade.draw_lrbt_rectangle_outline(
-            content_left,
-            content_right,
-            content_bottom,
-            content_top,
-            THRIFTING_CONTENT_BORDER,
-            2,
-        )
-        arcade.draw_line(
-            content_left + self.layout.sx(20),
-            content_bottom + (content_top - content_bottom) * 0.56 + self.layout.sy(60),
-            content_right - self.layout.sx(20),
-            content_bottom + (content_top - content_bottom) * 0.56 + self.layout.sy(60),
-            THRIFTING_TRACK_COLOR,
-            4,
-        )
         self.sprite_list.draw()
         if self.rack:
             self.selected_fabric_text.draw()
