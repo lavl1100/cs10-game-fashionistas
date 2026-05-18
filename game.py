@@ -1398,8 +1398,8 @@ class UpcyclingStationView(ActivityDetailView):
             music,
             "Upcycling Station",
             "Turn old pieces into something fresh.",
-            (255, 236, 223),
-            (245, 173, 126),
+            THRIFTING_CONTENT_FILL,
+            THRIFTING_WINDOW_FILL,
         )
 
 
@@ -1876,13 +1876,13 @@ class ThriftItem:
             eco = False
             price = random.randint(5, 20)
             value = random.randint(10, 40)
-            sprite.color = (255, 220, 220)
+            sprite.color = THRIFTING_WINDOW_FILL
         else:
             fabric = random.choice(ECO_FABRICS)
             eco = True
             price = random.randint(15, 35)
             value = random.randint(30, 70)
-            sprite.color = (180, 255, 200)
+            sprite.color = THRIFTING_CONTENT_BORDER
         sprite.alpha = 255
         return cls(texture_path, sprite, price, value, fabric, eco)
 
@@ -1910,8 +1910,9 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             "",
             0,
             0,
-            arcade.color.BLACK,
+            THRIFTING_TITLE_COLOR,
             layout.ss(12),
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -1919,8 +1920,9 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             "",
             0,
             0,
-            arcade.color.BLACK,
+            THRIFTING_TITLE_COLOR,
             layout.ss(12),
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -1928,8 +1930,9 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             "",
             0,
             0,
-            arcade.color.BLACK,
+            THRIFTING_TITLE_COLOR,
             layout.ss(16),
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -1937,8 +1940,9 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             "",
             0,
             0,
-            arcade.color.DARK_GRAY,
+            THRIFTING_WARNING_COLOR,
             layout.ss(14),
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -1946,8 +1950,9 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             "",
             0,
             0,
-            arcade.color.BLACK,
+            THRIFTING_TITLE_COLOR,
             layout.ss(16),
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -1955,8 +1960,9 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             "",
             0,
             0,
-            arcade.color.BLACK,
+            THRIFTING_TITLE_COLOR,
             layout.ss(16),
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -1964,8 +1970,9 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             "Left/Right browse   Space buy   Esc back",
             0,
             0,
-            arcade.color.DARK_GRAY,
+            THRIFTING_WARNING_COLOR,
             layout.ss(14),
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -1973,8 +1980,9 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             "",
             0,
             0,
-            arcade.color.RED,
+            THRIFTING_TITLE_COLOR,
             layout.ss(16),
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -2008,24 +2016,37 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             top - self.layout.window_header_height - self.layout.sy(16),
         )
 
+    def _rack_spacing(self, content_left: float, content_right: float) -> float:
+        content_width = max(self.layout.ss(1), content_right - content_left)
+        spacing = content_width / max(6, len(self.rack) or 1)
+        return max(self.layout.ss(42), min(self.layout.ss(76), spacing))
+
     def _update_positions(self) -> None:
         content_left, content_right, content_bottom, content_top = self._content_bounds()
         center_x = (content_left + content_right) / 2
-        rack_y = content_bottom + (content_top - content_bottom) * 0.54
+        rack_y = content_bottom + (content_top - content_bottom) * 0.56
+        spacing = self._rack_spacing(content_left, content_right)
+        rack_count = len(self.rack)
         for index, item in enumerate(self.rack):
-            offset = (index * THRIFTING_SPACING) - self.current_offset
+            offset = index - self.current_offset
+            if rack_count:
+                offset = (offset + rack_count / 2) % rack_count - rack_count / 2
+            offset *= spacing
             item.sprite.center_x = center_x + offset
-            dist = abs(index - self.current_index)
-            scale = max(0.24, 0.46 - dist * 0.05)
+            dist = abs(offset / spacing) if spacing else 0.0
+            scale = max(0.16, 0.30 - dist * 0.02)
             item.sprite.scale = scale
-            item.sprite.alpha = max(120, 255 - dist * 35)
-            item.sprite.center_y = rack_y + 48 - dist * 8
+            item.sprite.alpha = max(120, int(255 - dist * 28))
+            item.sprite.center_y = rack_y + self.layout.sy(28) - dist * self.layout.sy(6)
         self._sync_text()
 
     def _sync_text(self) -> None:
         content_left, content_right, content_bottom, content_top = self._content_bounds()
         self.money_text.text = f"Money: ${self.money}"
         self.score_text.text = f"Score: {self.score}"
+        self.money_text.color = THRIFTING_TITLE_COLOR
+        self.score_text.color = THRIFTING_TITLE_COLOR
+        self.instructions_text.color = THRIFTING_WARNING_COLOR
         self.instructions_text.x = content_left
         self.instructions_text.y = content_bottom + self.layout.sy(18)
         self.money_text.x = content_left
@@ -2033,35 +2054,44 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         self.score_text.x = content_left
         self.score_text.y = content_bottom + self.layout.sy(30)
         self.message_text.x = (content_left + content_right) / 2
-        self.message_text.y = content_bottom + self.layout.sy(80)
+        self.message_text.y = min(content_top - self.layout.sy(28), content_bottom + self.layout.sy(80))
         self.message_text.text = self.message
         self.selected_fabric_text.font_size = self.layout.ss(12)
         self.eco_status_text.font_size = self.layout.ss(12)
         self.price_text.font_size = self.layout.ss(16)
         self.detail_fabric_text.font_size = self.layout.ss(14)
+        self.price_text.color = THRIFTING_TITLE_COLOR
+        self.detail_fabric_text.color = THRIFTING_WARNING_COLOR
 
         if self.rack:
             item = self.rack[self.current_index]
             selected_sprite = item.sprite
             self.selected_fabric_text.text = item.fabric.upper()
+            self.selected_fabric_text.color = THRIFTING_TITLE_COLOR
             self.selected_fabric_text.x = selected_sprite.center_x
-            self.selected_fabric_text.y = selected_sprite.center_y - self.layout.sy(66)
+            self.selected_fabric_text.y = max(
+                content_bottom + self.layout.sy(86),
+                selected_sprite.center_y - (selected_sprite.height / 2) - self.layout.sy(22),
+            )
             self.eco_status_text.text = "ECO + BONUS" if item.eco else "FAST FASHION PENALTY"
-            self.eco_status_text.color = arcade.color.GREEN if item.eco else arcade.color.RED
+            self.eco_status_text.color = THRIFTING_SUCCESS_COLOR if item.eco else THRIFTING_WARNING_COLOR
             self.eco_status_text.x = selected_sprite.center_x
-            self.eco_status_text.y = selected_sprite.center_y - self.layout.sy(82)
+            self.eco_status_text.y = max(
+                content_bottom + self.layout.sy(68),
+                self.selected_fabric_text.y - self.layout.sy(18),
+            )
             self.price_text.text = f"Price: ${item.price}"
             self.price_text.x = (content_left + content_right) / 2
-            self.price_text.y = content_bottom + self.layout.sy(124)
+            self.price_text.y = min(content_top - self.layout.sy(36), content_bottom + self.layout.sy(120))
             self.detail_fabric_text.text = item.fabric
             self.detail_fabric_text.x = (content_left + content_right) / 2
-            self.detail_fabric_text.y = content_bottom + self.layout.sy(104)
+            self.detail_fabric_text.y = self.price_text.y - self.layout.sy(18)
 
     def _select_next(self, direction: int) -> None:
         if not self.rack:
             return
         self.current_index = (self.current_index + direction) % len(self.rack)
-        self.target_offset = self.current_index * THRIFTING_SPACING
+        self.target_offset = float(self.current_index)
 
     def _buy_current_item(self) -> None:
         if not self.rack:
@@ -2069,19 +2099,19 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         item = self.rack[self.current_index]
         if item.price > self.money:
             self.message = "Not enough money!"
-            self.message_text.color = arcade.color.RED
+            self.message_text.color = THRIFTING_WARNING_COLOR
             return
         self.money -= item.price
         if item.eco:
             delta = (item.value - item.price) * 2
             self.score += delta
             self.message = f"Eco buy +{delta}"
-            self.message_text.color = arcade.color.GREEN
+            self.message_text.color = THRIFTING_SUCCESS_COLOR
         else:
             delta = -(item.price + 10)
             self.score += delta
             self.message = f"Fast fashion {delta}"
-            self.message_text.color = arcade.color.RED
+            self.message_text.color = THRIFTING_WARNING_COLOR
 
         self.sprite_list.remove(item.sprite)
         self.rack.pop(self.current_index)
@@ -2090,7 +2120,7 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         self.sprite_list.append(replacement.sprite)
         if self.current_index >= len(self.rack):
             self.current_index = 0
-        self.target_offset = self.current_index * THRIFTING_SPACING
+        self.target_offset = float(self.current_index)
         self._sync_text()
 
     def update_layout(self, layout: GameLayout) -> None:
@@ -2110,34 +2140,40 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
     def on_update(self, delta_time: float) -> None:
         if not self._game_ready:
             return
-        self.current_offset += (self.target_offset - self.current_offset) / 7
+        rack_count = len(self.rack)
+        if rack_count:
+            delta = self.target_offset - self.current_offset
+            if delta > rack_count / 2:
+                delta -= rack_count
+            elif delta < -rack_count / 2:
+                delta += rack_count
+            self.current_offset = (self.current_offset + delta / 7) % rack_count
         self._update_positions()
 
     def on_draw(self) -> None:
         super().on_draw()
-        left, right, bottom, top = self._bounds()
         content_left, content_right, content_bottom, content_top = self._content_bounds()
         arcade.draw_lrbt_rectangle_filled(
             content_left,
             content_right,
             content_bottom,
             content_top,
-            (247, 241, 234),
+            THRIFTING_CONTENT_FILL,
         )
         arcade.draw_lrbt_rectangle_outline(
             content_left,
             content_right,
             content_bottom,
             content_top,
-            THEME_LAVENDER,
+            THRIFTING_CONTENT_BORDER,
             2,
         )
         arcade.draw_line(
             content_left + self.layout.sx(20),
-            content_bottom + (content_top - content_bottom) * 0.54 + self.layout.sy(88),
+            content_bottom + (content_top - content_bottom) * 0.56 + self.layout.sy(60),
             content_right - self.layout.sx(20),
-            content_bottom + (content_top - content_bottom) * 0.54 + self.layout.sy(88),
-            (120, 80, 40),
+            content_bottom + (content_top - content_bottom) * 0.56 + self.layout.sy(60),
+            THRIFTING_TRACK_COLOR,
             4,
         )
         self.sprite_list.draw()
