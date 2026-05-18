@@ -937,6 +937,11 @@ class ComputerWindowOverlay:
         self.drag_offset_x = 0.0
         self.drag_offset_y = 0.0
         self.is_adjusting_volume = False
+        self.thrift_budget = 35
+        self.thrift_score = 0
+        self.thrift_round = 1
+        self.thrift_message = "Find the pieces with the best style and quality."
+        self.thrift_finds: list[ThriftFind] = []
         self.title_text = arcade.Text(
             self.title,
             0,
@@ -977,6 +982,8 @@ class ComputerWindowOverlay:
             anchor_x="right",
             anchor_y="center",
         )
+        if self.title == "Clothing Store":
+            self._restock_thrift_rack()
         self.update_layout(layout)
 
     def _bounds(self) -> tuple[float, float, float, float]:
@@ -1045,6 +1052,192 @@ class ComputerWindowOverlay:
         volume = (x - slider_left) / (slider_right - slider_left)
         self.music.set_volume(volume)
         self.settings_value_text.text = f"{int(round(self.music.volume * 100))}%"
+
+    def _restock_thrift_rack(self) -> None:
+        self.thrift_round += 1
+        self.thrift_budget = 35
+        self.thrift_finds = []
+        for name in random.sample(THRIFT_ITEM_NAMES, 4):
+            style = random.randint(4, 12)
+            quality = random.randint(4, 12)
+            price = random.randint(6, 22)
+            self.thrift_finds.append(ThriftFind(name, price, style, quality))
+        self.thrift_message = "New rack! Click pieces worth more than they cost."
+
+    def _content_bounds(self) -> tuple[float, float, float, float]:
+        left, right, bottom, top = self._bounds()
+        _, _, header_bottom, _ = self._header_bounds()
+        pad = self.layout.ss(22)
+        return left + pad, right - pad, bottom + pad, header_bottom - self.layout.sy(14)
+
+    def _thrift_card_bounds(self, index: int) -> tuple[float, float, float, float]:
+        left, right, bottom, top = self._content_bounds()
+        gap = self.layout.ss(12)
+        title_space = self.layout.sy(84)
+        grid_top = top - title_space
+        card_width = (right - left - gap) / 2
+        card_height = (grid_top - bottom - gap) / 2
+        row = index // 2
+        col = index % 2
+        card_left = left + col * (card_width + gap)
+        card_top = grid_top - row * (card_height + gap)
+        return card_left, card_left + card_width, card_top - card_height, card_top
+
+    def _thrift_button_bounds(self) -> tuple[float, float, float, float]:
+        left, right, bottom, _ = self._content_bounds()
+        button_width = min(self.layout.sx(150), (right - left) * 0.42)
+        button_height = self.layout.sy(30)
+        button_right = right
+        button_bottom = bottom
+        return button_right - button_width, button_right, button_bottom, button_bottom + button_height
+
+    def _draw_window_text(
+        self,
+        text: str,
+        x: float,
+        y: float,
+        color: arcade.Color,
+        size: float,
+        anchor_x: str = "left",
+        anchor_y: str = "center",
+    ) -> None:
+        arcade.draw_text(
+            text,
+            x,
+            y,
+            color,
+            max(8, int(size)),
+            font_name=UI_FONT_NAME,
+            anchor_x=anchor_x,
+            anchor_y=anchor_y,
+        )
+
+    def _draw_thrift_game(self) -> None:
+        left, right, bottom, top = self._content_bounds()
+        title_size = self.layout.ss(19)
+        body_size = self.layout.ss(12)
+        small_size = self.layout.ss(10)
+        self._draw_window_text(
+            "Thrift Challenge",
+            left,
+            top - self.layout.sy(10),
+            THEME_TEXT_PURPLE,
+            title_size,
+            anchor_y="top",
+        )
+        self._draw_window_text(
+            f"Budget ${self.thrift_budget}    Style Score {self.thrift_score}",
+            right,
+            top - self.layout.sy(10),
+            THEME_TEXT_PURPLE,
+            body_size,
+            anchor_x="right",
+            anchor_y="top",
+        )
+        self._draw_window_text(
+            self.thrift_message,
+            left,
+            top - self.layout.sy(42),
+            THEME_TEXT_PURPLE,
+            small_size,
+            anchor_y="top",
+        )
+
+        for index, item in enumerate(self.thrift_finds):
+            card_left, card_right, card_bottom, card_top = self._thrift_card_bounds(index)
+            fill = THEME_SOFT_LILAC if item.picked else THEME_PALE_PINK
+            border = THEME_LAVENDER if item.picked else THEME_DEEP_PURPLE
+            arcade.draw_lrbt_rectangle_filled(card_left, card_right, card_bottom, card_top, fill)
+            arcade.draw_lrbt_rectangle_outline(card_left, card_right, card_bottom, card_top, border, 2)
+
+            tag_width = min(self.layout.sx(64), (card_right - card_left) * 0.36)
+            arcade.draw_lrbt_rectangle_filled(
+                card_right - tag_width,
+                card_right,
+                card_top - self.layout.sy(25),
+                card_top,
+                THEME_LAVENDER,
+            )
+            self._draw_window_text(
+                f"${item.price}",
+                card_right - tag_width / 2,
+                card_top - self.layout.sy(12),
+                THEME_TEXT_PURPLE,
+                body_size,
+                anchor_x="center",
+            )
+
+            name = item.name if len(item.name) <= 16 else item.name[:15] + "."
+            self._draw_window_text(
+                name,
+                card_left + self.layout.sx(10),
+                card_top - self.layout.sy(16),
+                THEME_TEXT_PURPLE,
+                body_size,
+            )
+            self._draw_window_text(
+                f"Style {item.style}",
+                card_left + self.layout.sx(10),
+                card_bottom + self.layout.sy(38),
+                THEME_TEXT_PURPLE,
+                small_size,
+            )
+            self._draw_window_text(
+                f"Quality {item.quality}",
+                card_left + self.layout.sx(10),
+                card_bottom + self.layout.sy(20),
+                THEME_TEXT_PURPLE,
+                small_size,
+            )
+            if item.picked:
+                verdict = "closet win" if item.is_good_find else "leftover regret"
+                self._draw_window_text(
+                    verdict,
+                    card_right - self.layout.sx(10),
+                    card_bottom + self.layout.sy(20),
+                    THEME_TEXT_PURPLE,
+                    small_size,
+                    anchor_x="right",
+                )
+
+        button_left, button_right, button_bottom, button_top = self._thrift_button_bounds()
+        arcade.draw_lrbt_rectangle_filled(button_left, button_right, button_bottom, button_top, THEME_LAVENDER)
+        arcade.draw_lrbt_rectangle_outline(button_left, button_right, button_bottom, button_top, THEME_DEEP_PURPLE, 2)
+        self._draw_window_text(
+            "New Rack",
+            (button_left + button_right) / 2,
+            (button_bottom + button_top) / 2,
+            THEME_TEXT_PURPLE,
+            body_size,
+            anchor_x="center",
+        )
+
+    def _hit_test_thrift_game(self, x: float, y: float) -> bool:
+        if self.title != "Clothing Store":
+            return False
+        button_left, button_right, button_bottom, button_top = self._thrift_button_bounds()
+        if button_left <= x <= button_right and button_bottom <= y <= button_top:
+            self._restock_thrift_rack()
+            return True
+        for index, item in enumerate(self.thrift_finds):
+            card_left, card_right, card_bottom, card_top = self._thrift_card_bounds(index)
+            if card_left <= x <= card_right and card_bottom <= y <= card_top:
+                if item.picked:
+                    self.thrift_message = "You already checked that rack tag."
+                    return True
+                item.picked = True
+                if self.thrift_budget < item.price:
+                    self.thrift_message = "Not enough budget left for that piece."
+                    return True
+                self.thrift_budget -= item.price
+                if item.is_good_find:
+                    self.thrift_score += item.value - item.price + 5
+                    self.thrift_message = f"{item.name} is a treasure."
+                else:
+                    self.thrift_score = max(0, self.thrift_score - 3)
+                    self.thrift_message = f"{item.name} was cute, but overpriced."
+                return True
+        return False
 
     def update_layout(self, layout: GameLayout) -> None:
         self.layout = layout
