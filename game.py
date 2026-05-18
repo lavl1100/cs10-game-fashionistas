@@ -700,31 +700,29 @@ class ThriftInfoBox:
     def set_item(self, item: Optional["ThriftItem"]) -> None:
         if item is None:
             entries = [
-                ("Fabric", "-"),
-                ("Type", "-"),
-                ("Price", "-"),
-                ("Value", "-"),
+                ("Fabric", "-", THRIFTING_TITLE_COLOR),
+                ("Type", "-", THRIFTING_TITLE_COLOR),
+                ("Price", "-", THRIFTING_TITLE_COLOR),
+                ("Value", "-", THRIFTING_TITLE_COLOR),
             ]
         else:
             entries = [
-                ("Fabric", item.fabric.title()),
-                ("Type", "Eco Friendly" if item.eco else "Fast Fashion"),
-                ("Price", f"${item.price}"),
-                ("Value", f"${item.value}"),
+                ("Fabric", item.fabric.title(), THRIFTING_TITLE_COLOR),
+                (
+                    "Type",
+                    "Eco Friendly" if item.eco else "Fast Fashion",
+                    THRIFTING_SUCCESS_COLOR if item.eco else THRIFTING_WARNING_COLOR,
+                ),
+                ("Price", f"${item.price}", THRIFTING_TITLE_COLOR),
+                ("Value", f"${item.value}", THRIFTING_TITLE_COLOR),
             ]
 
-        for text, (label, value) in zip(self.labels, entries):
+        for text, (label, value, color) in zip(self.labels, entries):
             text.text = f"{label}:"
-            text.color = THRIFTING_TITLE_COLOR
-        for text, (label, value) in zip(self.values, entries):
-            del label
+            text.color = color
+        for text, (_, value, color) in zip(self.values, entries):
             text.text = value
-            text.color = THRIFTING_SUCCESS_COLOR if value == "Eco Friendly" else THRIFTING_WARNING_COLOR
-        if item is not None:
-            self.labels[1].color = THRIFTING_SUCCESS_COLOR if item.eco else THRIFTING_WARNING_COLOR
-            self.values[1].color = THRIFTING_SUCCESS_COLOR if item.eco else THRIFTING_WARNING_COLOR
-            self.values[2].color = THRIFTING_TITLE_COLOR
-            self.values[3].color = THRIFTING_TITLE_COLOR
+            text.color = color
 
     def update_layout(
         self,
