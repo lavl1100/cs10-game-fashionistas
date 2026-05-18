@@ -644,9 +644,11 @@ class ThriftInfoBox:
         )
         title_x = self.center_x - self.width * 0.34
         title_y = self.center_y + self.height * 0.31
-        line_gap = max(self.layout.sy(18), self.layout.ss(14))
-        label_x = self.center_x - self.width * 0.34
-        value_x = self.center_x + self.width * 0.30
+        # Give the detail rows a little more breathing room so the labels and values
+        # do not visually crowd each other inside the info card.
+        line_gap = max(self.layout.sy(22), self.layout.ss(18))
+        label_x = self.center_x - self.width * 0.37
+        value_x = self.center_x + self.width * 0.34
         if not hasattr(self, "title_text"):
             self.title_text = arcade.Text(
                 self.title,
