@@ -89,6 +89,16 @@ THRIFTING_CLOTHING_IMAGE_PATHS = [
     ASSETS_DIR / "thriftingclothing4.png",
     ASSETS_DIR / "thriftingclothing5.png",
 ]
+THRIFTING_TEXTURE_CENTER = (750.0, 450.0)
+THRIFTING_HANGER_CENTER_RATIO_X = 745.8408136605393 / 1500.0
+THRIFTING_HANGER_CENTER_RATIO_Y = 365.91854063637214 / 900.0
+THRIFTING_CLOTHING_VISIBLE_CENTERS = {
+    "thriftingclothing.png": (738.0, 577.0),
+    "thriftingclothing2.png": (712.5, 527.5),
+    "thriftingclothing3.png": (725.0, 486.0),
+    "thriftingclothing4.png": (721.5, 573.5),
+    "thriftingclothing5.png": (733.5, 588.0),
+}
 THRIFTING_RACK_SIZE = 12
 THRIFTING_STARTING_MONEY = 100
 FAST_FASHION_FABRICS = ["polyester", "nylon", "rayon", "acrylic"]
@@ -1911,8 +1921,6 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             )
         )
         self.current_index = 0
-        self.target_offset = 0.0
-        self.current_offset = 0.0
         self.money = THRIFTING_STARTING_MONEY
         self.score = 0
         self.message = ""
@@ -2006,15 +2014,12 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
         self.rack.clear()
         self.sprite_list = arcade.SpriteList()
         self.current_index = 0
-        self.target_offset = 0.0
-        self.current_offset = 0.0
         self.money = THRIFTING_STARTING_MONEY
         self.score = 0
         self.message = ""
         for _ in range(THRIFTING_RACK_SIZE):
             item = ThriftItem.create()
             self.rack.append(item)
-            self.sprite_list.append(item.sprite)
         self._update_positions()
         self._sync_text()
 
