@@ -2390,9 +2390,10 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
     def _compose_button_geometry(self) -> list[tuple[float, float, float, float]]:
         modal_left, modal_bottom, modal_width, modal_height = self._compose_modal_geometry()
-        button_height = max(0.0, self.layout.sy(58))
         gap = self.layout.sy(8)
         count = len(self.post_types)
+        available_height = max(0.0, modal_height - self.layout.sy(70) - (count - 1) * gap)
+        button_height = 0.0 if count <= 0 else min(self.layout.sy(58), available_height / count)
         total = count * button_height + (count - 1) * gap
         start_y = modal_bottom + modal_height - self.layout.sy(70) - total
         button_left = modal_left + self.layout.sx(18)
@@ -2475,10 +2476,13 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
     def _sync_sidebar_controls(self) -> None:
         sidebar_left, sidebar_right, sidebar_bottom, sidebar_top = self._sidebar_bounds()
-        button_width = sidebar_right - sidebar_left - self.layout.sx(28)
+        button_width = max(0.0, sidebar_right - sidebar_left - self.layout.sx(28))
         button_height = self.layout.sy(38)
         button_center_x = (sidebar_left + sidebar_right) / 2
-        button_center_y = sidebar_bottom + self.layout.sy(34)
+        button_center_y = max(
+            sidebar_bottom + button_height / 2,
+            min(sidebar_top - button_height / 2, sidebar_bottom + self.layout.sy(34)),
+        )
         if self.sidebar_post_button is None:
             self.sidebar_post_button = SpriteButtonPanel(
                 self.layout,
@@ -2635,7 +2639,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             SOCIAL_MEDIA_CARD_LIFE_TRACK,
             SOCIAL_MEDIA_CARD_BORDER,
         )
-        fill_width = max(10.0, progress_width * min(1.0, self.day_timer / self.day_length))
+        fill_width = min(progress_width, max(0.0, progress_width * min(1.0, self.day_timer / self.day_length)))
         _draw_pill(
             progress_x,
             progress_y,
