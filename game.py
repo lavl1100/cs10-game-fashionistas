@@ -926,7 +926,7 @@ def _tutorial_message_for_screen(label: str) -> str:
         "settings": "Adjust the music controls here, then close the window when you're done.",
         "closet": "Preview outfits on the left, then switch tabs to compare looks and check what you own.",
         "clothing store": "Browse the catalog and buy pieces with your money.",
-        "social media": "Pick a post type, publish it, and grow your follower count.",
+        "social 503077media": "Pick a post type, publish it, and grow your follower count.",
         "activities": "Choose Thrifting for shopping or Upcycling for the cutting challenge.",
         "activity center": "Pick Thrifting for shopping or Upcycling for the cutting challenge.",
         "thrifting": "Move through the rack, then press Space to buy the highlighted item.",
