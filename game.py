@@ -4082,7 +4082,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._cut_path_length = 1.0
         self._cut_clouds: list[CutCloudPuff] = []
         self._max_cut_clouds = 48
-        self._cut_motion_threshold = max(self.layout.ss(0.5), 0.75)
+        self._cut_motion_threshold = max(layout.ss(0.5), 0.75)
         self._cut_guide_visible = False
         self._scissors_visible = False
         self._cut_intro_elapsed = 0.0
