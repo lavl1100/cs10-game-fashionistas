@@ -96,7 +96,8 @@ UPCYCLING_THIRD_ITEM_DONE_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing3a.png"
 UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH = ASSETS_DIR / "scissors.png"
 UPCYCLING_NEEDLE_CURSOR_IMAGE_PATH = ASSETS_DIR / "needle.png"
 UPCYCLING_SCISSORS_CURSOR_SIZE = 64
-UPCYCLING_GARMENT_SCALE = 0.60
+UPCYCLING_GARMENT_SCALE = 0.68
+UPCYCLING_GARMENT_CENTER_Y_OFFSET_RATIO = 0.05
 UPCYCLING_ART_ASPECT_RATIO = 1500.0 / 900.0
 THRIFTING_ART_ASPECT_RATIO = 1500.0 / 900.0
 THRIFTING_CLOTHING_IMAGE_PATHS = [
@@ -4327,8 +4328,9 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         content_height = max(1.0, content_top - content_bottom)
         garment_width = content_width * UPCYCLING_GARMENT_SCALE
         garment_height = content_height * UPCYCLING_GARMENT_SCALE
+        garment_center_y = (content_bottom + content_top) / 2 + content_height * UPCYCLING_GARMENT_CENTER_Y_OFFSET_RATIO
         garment_left = (content_left + content_right) / 2 - garment_width / 2
-        garment_bottom = (content_bottom + content_top) / 2 - garment_height / 2
+        garment_bottom = garment_center_y - garment_height / 2
 
         base_path, _, _ = self._current_cut_stage_paths()
         cut_path_template = self._cut_path_templates.get(base_path, [])
@@ -4341,7 +4343,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
                 for x_ratio, y_ratio in cut_path_template
             ]
         else:
-            center_y = content_bottom + content_height * 0.52
+            center_y = garment_center_y
             wave = content_height * 0.06
             points = [
                 (content_left + content_width * 0.18, center_y - wave * 0.75),
@@ -4387,13 +4389,14 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self.background_sprite.height = content_top - content_bottom
         garment_width = (content_right - content_left) * UPCYCLING_GARMENT_SCALE
         garment_height = (content_top - content_bottom) * UPCYCLING_GARMENT_SCALE
+        garment_center_y = (content_bottom + content_top) / 2 + (content_top - content_bottom) * UPCYCLING_GARMENT_CENTER_Y_OFFSET_RATIO
         for sprite in (self.first_item_sprite, self.first_item_alt_sprite):
             sprite.center_x = (content_left + content_right) / 2
-            sprite.center_y = (content_bottom + content_top) / 2
+            sprite.center_y = garment_center_y
             sprite.width = garment_width
             sprite.height = garment_height
         self.first_item_done_sprite.center_x = (content_left + content_right) / 2
-        self.first_item_done_sprite.center_y = (content_bottom + content_top) / 2
+        self.first_item_done_sprite.center_y = garment_center_y
         self.first_item_done_sprite.width = garment_width
         self.first_item_done_sprite.height = garment_height
         for sprite in (
@@ -4408,7 +4411,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             self.fourth_item_done_sprite,
         ):
             sprite.center_x = (content_left + content_right) / 2
-            sprite.center_y = (content_bottom + content_top) / 2
+            sprite.center_y = garment_center_y
             sprite.width = garment_width
             sprite.height = garment_height
         self.cursor_sprite.width = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
