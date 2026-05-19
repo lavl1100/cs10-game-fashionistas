@@ -706,11 +706,20 @@ class GameCursor:
 
     def _ensure_cursor(self):
         if self._cursor is None:
+            from pyglet.image import ImageData
             from pyglet.window import ImageMouseCursor
 
             # The image is designed like a stylized pointer, so the hotspot
             # sits near the top-left corner rather than the center.
-            self._cursor = ImageMouseCursor(self._texture.image, 0, 0)
+            cursor_image = self._texture.image.convert("RGBA")
+            image_data = ImageData(
+                cursor_image.width,
+                cursor_image.height,
+                "RGBA",
+                cursor_image.tobytes(),
+                pitch=-cursor_image.width * 4,
+            )
+            self._cursor = ImageMouseCursor(image_data, 0, 0)
         return self._cursor
 
     def apply(self, window: arcade.Window) -> None:
