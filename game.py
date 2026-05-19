@@ -643,6 +643,16 @@ def _make_sprite(
     return sprite
 
 
+def _fit_sprite_to_box(sprite: arcade.Sprite, max_width: float, max_height: float) -> None:
+    """Scale a sprite uniformly so it fits inside a target box."""
+    texture = sprite.texture
+    if texture.width <= 0 or texture.height <= 0:
+        return
+
+    scale = min(max_width / texture.width, max_height / texture.height)
+    sprite.scale = scale
+
+
 def _wrap_wardrobe_title(title: str) -> str:
     """Wrap longer clothing names onto two lines so they stay inside the card."""
     words = title.title().split()
@@ -3210,13 +3220,9 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             self.background_sprite.center_y = girl_center_y
             self.background_sprite.width = girl_width
             self.background_sprite.height = girl_height
-        girl_texture = self.girl_sprite.sprite.texture
-        girl_scale_x = girl_width / girl_texture.width if girl_texture.width else 1.0
-        girl_scale_y = girl_height / girl_texture.height if girl_texture.height else 1.0
         self.girl_sprite.center_x = girl_center_x
         self.girl_sprite.center_y = girl_center_y
-        self.girl_sprite.width = girl_width
-        self.girl_sprite.height = girl_height
+        _fit_sprite_to_box(self.girl_sprite.sprite, girl_width, girl_height)
 
         equipped_lookup = {item.item_id: item for item in self.wardrobe.catalog}
         for category in WARDROBE_CATEGORY_ORDER:
@@ -3239,8 +3245,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             sprite.alpha = 255
             sprite.center_x = girl_center_x
             sprite.center_y = girl_center_y
-            sprite.width = sprite.texture.width * girl_scale_x
-            sprite.height = sprite.texture.height * girl_scale_y
+            _fit_sprite_to_box(sprite, girl_width, girl_height)
 
         for category, sprite in self.outfit_sprites.items():
             if category not in self.wardrobe.equipped_by_category:
