@@ -220,6 +220,9 @@ FAST_FASHION_FABRICS = ["polyester", "nylon", "rayon", "acrylic"]
 ECO_FABRICS = ["cotton", "linen", "wool", "hemp"]
 UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
 UI_FONT_NAME = "Kenney Future Narrow"
+TUTORIAL_GUIDE_SPRITE_PATH = ASSETS_DIR / "sprite_happy.png"
+TUTORIAL_GUIDE_BUBBLE_PATH = ASSETS_DIR / "speech_bubble.png"
+TUTORIAL_GUIDE_TEXT_COLOR = THEME_TEXT_PURPLE if "THEME_TEXT_PURPLE" in globals() else (106, 47, 130)
 
 arcade.load_font(UI_FONT_PATH)
 
@@ -853,6 +856,87 @@ class DrawableSprite:
         self._sprite = sprite
         self._sprite_list.clear()
         self._sprite_list.append(sprite)
+
+
+class TutorialGuide:
+    """Bottom-right helper that pairs a sprite with a speech bubble."""
+
+    def __init__(self, layout: GameLayout, message: str) -> None:
+        self.message = message
+        self.bubble = DrawableSprite(
+            _make_sprite(TUTORIAL_GUIDE_BUBBLE_PATH, 0, 0, 1, 1, (255, 255, 255))
+        )
+        self.sprite = DrawableSprite(
+            _make_sprite(TUTORIAL_GUIDE_SPRITE_PATH, 0, 0, 1, 1, (255, 255, 255))
+        )
+        self.text = arcade.Text(
+            message,
+            0,
+            0,
+            TUTORIAL_GUIDE_TEXT_COLOR,
+            layout.ss(12),
+            font_name=UI_FONT_NAME,
+            width=layout.sx(220),
+            align="center",
+            anchor_x="center",
+            anchor_y="center",
+            multiline=True,
+        )
+        self.update_layout(layout)
+
+    def set_message(self, message: str) -> None:
+        self.message = message
+        self.text.text = message
+
+    def update_layout(self, layout: GameLayout) -> None:
+        bubble_width = min(layout.sx(320), max(layout.sx(220), layout.width * 0.34))
+        bubble_height = min(layout.sy(170), max(layout.sy(120), layout.height * 0.22))
+        bubble_center_x = layout.width - layout.sx(16) - bubble_width / 2 - layout.sx(52)
+        bubble_center_y = layout.sy(42) + bubble_height / 2 + layout.sy(24)
+        sprite_size = min(layout.ss(136), max(layout.ss(88), min(layout.width, layout.height) * 0.16))
+        sprite_center_x = layout.width - layout.sx(56)
+        sprite_center_y = layout.sy(58)
+
+        self.bubble.center_x = bubble_center_x
+        self.bubble.center_y = bubble_center_y
+        self.bubble.width = bubble_width
+        self.bubble.height = bubble_height
+
+        self.sprite.center_x = sprite_center_x
+        self.sprite.center_y = sprite_center_y
+        self.sprite.width = sprite_size
+        self.sprite.height = sprite_size
+
+        self.text.x = bubble_center_x - layout.sx(8)
+        self.text.y = bubble_center_y + layout.sy(12)
+        self.text.font_size = layout.ss(12)
+        self.text.width = bubble_width - layout.sx(52)
+        self.text.text = self.message
+
+    def draw(self) -> None:
+        self.bubble.draw()
+        self.text.draw()
+        self.sprite.draw()
+
+
+def _tutorial_message_for_screen(label: str) -> str:
+    normalized = label.strip().lower()
+    messages = {
+        "home": "Use the sidebar to jump into Closet, Store, Social Media, or Activities.",
+        "settings": "Adjust the music controls here, then close the window when you're done.",
+        "closet": "Preview outfits on the left, then switch tabs to compare looks and check what you own.",
+        "clothing store": "Browse the catalog and buy pieces with your money.",
+        "social media": "Pick a post type, publish it, and grow your follower count.",
+        "activities": "Choose Thrifting for shopping or Upcycling for the cutting challenge.",
+        "activity center": "Pick Thrifting for shopping or Upcycling for the cutting challenge.",
+        "thrifting": "Move through the rack, then press Space to buy the highlighted item.",
+        "upcycling station": "Drag the scissors along the highlighted path until the cut is complete.",
+        "upcycling": "Drag the scissors along the highlighted path until the cut is complete.",
+    }
+    return messages.get(
+        normalized,
+        "Follow the on-screen buttons and labels to play this screen.",
+    )
 
 
 @dataclass(frozen=True)
@@ -1520,6 +1604,7 @@ class HomeView(arcade.View):
         self._last_money_amount: Optional[int] = None
         self._last_energy_percentage: Optional[str] = None
         self._last_level_summary: Optional[str] = None
+        self.tutorial_guide = TutorialGuide(self.layout, _tutorial_message_for_screen("home"))
         self._build_buttons()
         self._sync_clock_text(force=True)
         self._sync_money_box(force=True)
@@ -1636,6 +1721,7 @@ class HomeView(arcade.View):
         self.time_text.x = layout.top_clock_right
         self.time_text.y = layout.top_clock_time_y
         self.time_text.font_size = layout.ss(18)
+        self.tutorial_guide.update_layout(layout)
         button_left = layout.home_button_left + layout.home_button_width / 2
         for index, button in enumerate(self.buttons):
             center_y = layout.home_button_top - index * (layout.home_button_height + layout.home_button_gap)
@@ -1782,6 +1868,7 @@ class HomeView(arcade.View):
             button.draw()
         if self.active_window is not None:
             self.active_window.draw()
+        self.tutorial_guide.draw()
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
@@ -1867,6 +1954,7 @@ class ActivityMenuView(arcade.View):
         self.left_button: Optional[SpriteButtonPanel] = None
         self.right_button: Optional[SpriteButtonPanel] = None
         self.home_button: Optional[SpriteButtonPanel] = None
+        self.tutorial_guide = TutorialGuide(self.layout, _tutorial_message_for_screen("activity center"))
         self._apply_layout(self.layout)
 
     def _show_home(self) -> None:
@@ -1940,6 +2028,7 @@ class ActivityMenuView(arcade.View):
                 layout.ss(ACTIVITY_MENU_BACK_BUTTON_HEIGHT),
                 layout.ss(22),
             )
+        self.tutorial_guide.update_layout(layout)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
@@ -1956,6 +2045,7 @@ class ActivityMenuView(arcade.View):
             self.right_button.draw()
         if self.home_button is not None:
             self.home_button.draw()
+        self.tutorial_guide.draw()
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> bool:
         if button != arcade.MOUSE_BUTTON_LEFT:
@@ -2036,6 +2126,7 @@ class ActivityDetailView(arcade.View):
         )
         self.back_button: Optional[SpriteButtonPanel] = None
         self.home_button: Optional[SpriteButtonPanel] = None
+        self.tutorial_guide = TutorialGuide(self.layout, _tutorial_message_for_screen(title))
         self._apply_layout(self.layout)
 
     def _go_back(self) -> None:
@@ -2096,6 +2187,7 @@ class ActivityDetailView(arcade.View):
                 layout.ss(ACTIVITY_MENU_BACK_BUTTON_HEIGHT),
                 layout.ss(22),
             )
+        self.tutorial_guide.update_layout(layout)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
@@ -2125,6 +2217,7 @@ class ActivityDetailView(arcade.View):
             self.back_button.draw()
         if self.home_button is not None:
             self.home_button.draw()
+        self.tutorial_guide.draw()
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> bool:
         if button != arcade.MOUSE_BUTTON_LEFT:
@@ -2267,6 +2360,7 @@ class ComputerWindowOverlay:
         self.previous_button = self._make_control_button("Prev", self._previous_track)
         self.play_pause_button = self._make_control_button("Pause", self._toggle_playback)
         self.next_button = self._make_control_button("Next", self._next_track)
+        self.tutorial_guide = TutorialGuide(self.layout, _tutorial_message_for_screen(self.title))
         self.update_layout(layout)
 
     def _bounds(self) -> tuple[float, float, float, float]:
@@ -2414,6 +2508,7 @@ class ComputerWindowOverlay:
             button_height,
             layout.ss(SETTINGS_CONTROL_BUTTON_TEXT_SIZE),
         )
+        self.tutorial_guide.update_layout(self.layout)
         self._sync_text_positions()
 
     def _make_control_button(self, label: str, on_activate: Callable[[], None]) -> SpriteButtonPanel:
@@ -2639,6 +2734,7 @@ class ComputerWindowOverlay:
             self.previous_button.draw()
             self.play_pause_button.draw()
             self.next_button.draw()
+        self.tutorial_guide.draw()
 
     def draw(self) -> None:
         self.on_draw()

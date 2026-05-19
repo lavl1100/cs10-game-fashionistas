@@ -13,13 +13,17 @@ Controls:
 import math
 import random
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List
 from enum import Enum
 
 import arcade
 
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
 UI_FONT_NAME = "Kenney Future Narrow"
+TUTORIAL_BUBBLE_PATH = ASSETS_DIR / "speech_bubble.png"
+TUTORIAL_SPRITE_PATH = ASSETS_DIR / "sprite_happy.png"
 
 arcade.load_font(UI_FONT_PATH)
 
@@ -58,6 +62,38 @@ BTN_TEXT   = (255, 255, 255)
 # Sidebar stripes
 SB_STRIPE_A = (255, 248, 252)
 SB_STRIPE_B = (255, 238, 247)
+
+
+class TutorialGuide:
+    def __init__(self):
+        self.bubble = arcade.Sprite(str(TUTORIAL_BUBBLE_PATH))
+        self.bubble.center_x = W - 250
+        self.bubble.center_y = 125
+        self.bubble.width = 360
+        self.bubble.height = 170
+        self.sprite = arcade.Sprite(str(TUTORIAL_SPRITE_PATH))
+        self.sprite.center_x = W - 78
+        self.sprite.center_y = 60
+        self.sprite.width = 120
+        self.sprite.height = 120
+        self.text = arcade.Text(
+            "Choose a post type, then press the matching number key to create content and grow your audience.",
+            self.bubble.center_x - 14,
+            self.bubble.center_y + 10,
+            TEXT_DARK,
+            14,
+            font_name=UI_FONT_NAME,
+            width=280,
+            align="center",
+            anchor_x="center",
+            anchor_y="center",
+            multiline=True,
+        )
+
+    def draw(self):
+        self.bubble.draw()
+        self.text.draw()
+        self.sprite.draw()
 
 
 # ── Text cache (arcade 4.x — avoid draw_text PerformanceWarning) ──────────────
@@ -283,6 +319,7 @@ class Fashionista(arcade.Window):
         self.notifs: List[Notif] = []
         self.post_types: List[PT] = list(PT)
         self.scroll = 0;  self.composing = False;  self.hover_idx = -1
+        self.tutorial_guide = TutorialGuide()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
     def _gain(self, n):
@@ -351,6 +388,7 @@ class Fashionista(arcade.Window):
         self._draw_feed()
         self._draw_notifs()
         if self.composing: self._draw_compose()
+        self.tutorial_guide.draw()
         TB.end()
 
     # ── Sidebar ───────────────────────────────────────────────────────────────
