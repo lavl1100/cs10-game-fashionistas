@@ -125,6 +125,7 @@ THRIFTING_CLOTHING_IMAGE_PATHS = [
     ASSETS_DIR / "thriftingclothing5.png",
 ]
 WARDROBE_GIRL_IMAGE_PATH = ASSETS_DIR / "closet_girl.png"
+WARDROBE_CLOSET_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "closet_background.png"
 WARDROBE_CATEGORY_ORDER = [
     "all",
     "hats",
@@ -2953,18 +2954,33 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         wardrobe: WardrobeState,
         wallet: PlayerWallet,
         mode: str,
+        background_image_path: Optional[Path] = None,
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
         self._wardrobe_ready = False
         self.mode = mode
         self.wardrobe = wardrobe
         self.wallet = wallet
+        self.background_image_path = background_image_path
         self.selected_category = "all"
         self.message = ""
         self.message_timer = 0.0
         self.tab_buttons: list[WardrobeTabButton] = []
         self.item_cards: list[WardrobeItemCard] = []
         self.outfit_sprites: dict[str, arcade.Sprite] = {}
+        self.background_sprite: Optional[DrawableSprite] = None
+        if self.background_image_path is not None:
+            self.background_sprite = DrawableSprite(
+                _make_sprite(
+                    self.background_image_path,
+                    layout.width / 2,
+                    layout.height / 2,
+                    layout.width * 0.35,
+                    layout.height * 0.75,
+                    WARDROBE_PANEL_FILL,
+                    crop_to_fit=True,
+                )
+            )
         self.girl_sprite = DrawableSprite(
             _make_sprite(
                 WARDROBE_GIRL_IMAGE_PATH,
@@ -3159,6 +3175,11 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         girl_center_y = (girl_bottom + girl_top) / 2
         girl_width = girl_right - girl_left
         girl_height = girl_top - girl_bottom
+        if self.background_sprite is not None:
+            self.background_sprite.center_x = girl_center_x
+            self.background_sprite.center_y = girl_center_y
+            self.background_sprite.width = girl_width
+            self.background_sprite.height = girl_height
         girl_texture = self.girl_sprite.sprite.texture
         girl_scale_x = girl_width / girl_texture.width if girl_texture.width else 1.0
         girl_scale_y = girl_height / girl_texture.height if girl_texture.height else 1.0
@@ -3289,6 +3310,8 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             WARDROBE_CARD_BORDER,
             2,
         )
+        if self.background_sprite is not None:
+            self.background_sprite.draw()
         self.girl_sprite.draw()
         for category in self._layer_order():
             sprite = self.outfit_sprites.get(category)
@@ -3398,7 +3421,16 @@ class ClosetOverlay(WardrobeCatalogOverlay):
         wallet: PlayerWallet,
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
-        super().__init__(layout, "Closet", on_close, wardrobe, wallet, "closet", music)
+        super().__init__(
+            layout,
+            "Closet",
+            on_close,
+            wardrobe,
+            wallet,
+            "closet",
+            WARDROBE_CLOSET_BACKGROUND_IMAGE_PATH,
+            music,
+        )
 
 
 class ClothingStoreOverlay(WardrobeCatalogOverlay):
@@ -3412,7 +3444,7 @@ class ClothingStoreOverlay(WardrobeCatalogOverlay):
         wallet: PlayerWallet,
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
-        super().__init__(layout, "Clothing Store", on_close, wardrobe, wallet, "store", music)
+        super().__init__(layout, "Clothing Store", on_close, wardrobe, wallet, "store", None, music)
 
 
 class SocialMediaPostType(Enum):
