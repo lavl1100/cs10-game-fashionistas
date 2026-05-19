@@ -710,7 +710,7 @@ class DrawableSprite:
         self._sprite_list.append(sprite)
 
     def draw(self) -> None:
-        self._sprite_list.draw()
+        arcade.draw_sprite(self._sprite)
 
     def collides_with_point(self, point: tuple[float, float]) -> bool:
         return self._sprite.collides_with_point(point)
@@ -3358,7 +3358,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         for category in self._layer_order():
             sprite = self.outfit_sprites.get(category)
             if sprite is not None and sprite.alpha > 0:
-                sprite.draw()
+                arcade.draw_sprite(sprite)
         for card in self.item_cards:
             card.draw()
         for button in self.tab_buttons:
