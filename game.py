@@ -2481,27 +2481,23 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             self.notifications.pop(0)
 
     def _award_daily_experience(self) -> None:
-        if self.progress is None:
-            return
-
         follower_gain = max(0, self.followers - self._day_followers_start)
         like_gain = max(0, self.total_likes - self._day_likes_start)
         eco_gain = max(0, self.eco_impact - self._day_eco_start)
         xp_gain = follower_gain + like_gain + eco_gain
-        if xp_gain <= 0:
-            return
-
-        levels_gained = self.progress.add_experience(xp_gain)
-        self._notify(
-            f"♡  +{xp_gain} XP from today's growth!",
-            SOCIAL_MEDIA_CARD_GOLD if levels_gained > 0 else SOCIAL_MEDIA_CARD_TEXT,
-        )
-        if levels_gained > 0:
-            level_word = "level" if levels_gained == 1 else "levels"
+        levels_gained = 0
+        if self.progress is not None and xp_gain > 0:
+            levels_gained = self.progress.add_experience(xp_gain)
             self._notify(
-                f"♡  {levels_gained} {level_word} up from your social buzz!",
-                SOCIAL_MEDIA_CARD_GOLD,
+                f"♡  +{xp_gain} XP from today's growth!",
+                SOCIAL_MEDIA_CARD_GOLD if levels_gained > 0 else SOCIAL_MEDIA_CARD_TEXT,
             )
+            if levels_gained > 0:
+                level_word = "level" if levels_gained == 1 else "levels"
+                self._notify(
+                    f"♡  {levels_gained} {level_word} up from your social buzz!",
+                    SOCIAL_MEDIA_CARD_GOLD,
+                )
 
         self._day_followers_start = self.followers
         self._day_likes_start = self.total_likes
