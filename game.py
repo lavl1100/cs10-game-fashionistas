@@ -3147,22 +3147,28 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             button.set_selected(button.category == category)
         self._sync_item_cards()
 
+    def _card_columns(self) -> int:
+        if self.mode == "store" and self.selected_category == "all":
+            return 4
+        return WARDROBE_ITEM_CARD_COLUMNS
+
     def _card_geometry(self, item_count: int) -> tuple[float, float]:
         grid_left, grid_right, content_bottom, content_top = self._grid_bounds()
         grid_width = max(1.0, grid_right - grid_left)
         grid_height = max(1.0, content_top - content_bottom)
         gap_scale = 0.6 if self.mode == "store" and self.selected_category == "all" else 1.0
         gap = self.layout.sx(WARDROBE_ITEM_CARD_GAP) * gap_scale
-        rows = max(1, math.ceil(item_count / WARDROBE_ITEM_CARD_COLUMNS))
+        columns = self._card_columns()
+        rows = max(1, math.ceil(item_count / columns))
         card_side = min(
-            (grid_width - gap * (WARDROBE_ITEM_CARD_COLUMNS - 1)) / WARDROBE_ITEM_CARD_COLUMNS,
+            (grid_width - gap * (columns - 1)) / columns,
             (grid_height - gap * (rows - 1)) / rows,
         )
         return card_side, card_side
 
     def _card_position(self, index: int, card_width: float, card_height: float, gap: float) -> tuple[float, float]:
         grid_left, _, _, content_top = self._grid_bounds()
-        columns = WARDROBE_ITEM_CARD_COLUMNS
+        columns = self._card_columns()
         col = index % columns
         row = index // columns
         x = grid_left + card_width / 2 + col * (card_width + gap)
