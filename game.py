@@ -17,6 +17,7 @@ warnings.filterwarnings(
 )
 
 import arcade
+import arcade.shape_list as _shape_list
 import pygame
 
 BASE_SCREEN_WIDTH = 800
@@ -3819,6 +3820,10 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.hover_idx = -1
         self._text_cache: dict[tuple[object, ...], arcade.Text] = {}
         self._post_layout_cache: dict[tuple[int, int, int], tuple[float, list[str]]] = {}
+        self._stripe_shapes: Optional[_shape_list.ShapeElementList] = None
+        self._stripe_cache_key: Optional[tuple] = None
+        self._pip_shapes: Optional[_shape_list.ShapeElementList] = None
+        self._pip_cache_key: Optional[tuple] = None
         self.sidebar_post_button: Optional[SpriteButtonPanel] = None
         self.compose_buttons: list[SpriteButtonPanel] = []
         self.sidebar_title_text = arcade.Text(
@@ -4286,24 +4291,41 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self._sync_sidebar_controls()
         self._clamp_scroll()
 
-    def _draw_sidebar(self) -> None:
-        sidebar_left, sidebar_right, sidebar_bottom, sidebar_top = self._sidebar_bounds()
-        stripe_width = max(1.0, self.layout.sx(14))
-        stripe_count = int(math.ceil((sidebar_right - sidebar_left) / stripe_width))
-        for index in range(stripe_count):
-            stripe_x = sidebar_left + index * stripe_width
+    def _rebuild_stripe_shapes(
+        self,
+        sl: float, sr: float, sb: float, st: float, sw: float,
+    ) -> _shape_list.ShapeElementList:
+        shapes: _shape_list.ShapeElementList = _shape_list.ShapeElementList()
+        count = int(math.ceil((sr - sl) / sw))
+        cy = (sb + st) / 2
+        h = st - sb
+        for index in range(count):
+            sx = sl + index * sw
+            ex = min(sr, sx + sw)
             color = (
                 SOCIAL_MEDIA_SIDEBAR_STRIPE_A
                 if index % 2 == 0
                 else SOCIAL_MEDIA_SIDEBAR_STRIPE_B
             )
-            arcade.draw_lrbt_rectangle_filled(
-                stripe_x,
-                min(sidebar_right, stripe_x + stripe_width),
-                sidebar_bottom,
-                sidebar_top,
-                color,
+            shapes.append(
+                _shape_list.create_rectangle_filled((sx + ex) / 2, cy, ex - sx, h, color)
             )
+        return shapes
+
+    def _draw_sidebar(self) -> None:
+        sidebar_left, sidebar_right, sidebar_bottom, sidebar_top = self._sidebar_bounds()
+        stripe_width = max(1.0, self.layout.sx(14))
+        stripe_key = (
+            int(sidebar_left), int(sidebar_right),
+            int(sidebar_bottom), int(sidebar_top),
+            int(stripe_width),
+        )
+        if self._stripe_cache_key != stripe_key:
+            self._stripe_shapes = self._rebuild_stripe_shapes(
+                sidebar_left, sidebar_right, sidebar_bottom, sidebar_top, stripe_width,
+            )
+            self._stripe_cache_key = stripe_key
+        self._stripe_shapes.draw()
 
         arcade.draw_lrbt_rectangle_outline(
             sidebar_left,
@@ -4414,11 +4436,22 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         total_pips = pip_w * self.max_energy
         start_x = sidebar_left + (sidebar_right - sidebar_left - total_pips) / 2
         pips_y = energy_label_y - self.layout.sy(18)
-        for index in range(self.max_energy):
-            cx = start_x + (index + 0.5) * pip_w
-            fill = (255, 160, 198) if index < self.energy else (255, 229, 238)
-            arcade.draw_circle_filled(cx, pips_y, self.layout.ss(5), fill)
-            arcade.draw_circle_outline(cx, pips_y, self.layout.ss(5), (225, 125, 165), 1)
+        pip_r = self.layout.ss(5)
+        pip_key = (
+            self.energy, self.max_energy,
+            int(start_x * 4), int(pips_y * 4),
+            int(pip_w * 4), int(pip_r * 4),
+        )
+        if self._pip_cache_key != pip_key:
+            shapes: _shape_list.ShapeElementList = _shape_list.ShapeElementList()
+            for index in range(self.max_energy):
+                cx = start_x + (index + 0.5) * pip_w
+                fill = (255, 160, 198) if index < self.energy else (255, 229, 238)
+                shapes.append(_shape_list.create_ellipse_filled(cx, pips_y, pip_r, pip_r, fill))
+                shapes.append(_shape_list.create_ellipse_outline(cx, pips_y, pip_r, pip_r, (225, 125, 165), 1))
+            self._pip_shapes = shapes
+            self._pip_cache_key = pip_key
+        self._pip_shapes.draw()
 
         stats_top = pips_y - self.layout.sy(22)
         stats_rows = [
@@ -6169,6 +6202,8 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             self._spawn_cut_clouds(x, y, motion_strength, burst=True)
 
     def _prune_cut_effects(self) -> None:
+        if not self._cut_clouds:
+            return
         now = _current_time()
         self._cut_clouds = [
             cloud for cloud in self._cut_clouds if now - cloud.spawned_at <= cloud.lifetime
