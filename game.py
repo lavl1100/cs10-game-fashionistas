@@ -4748,10 +4748,10 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
 
     def _sync_overlay_text(self) -> None:
         content_left, content_right, content_bottom, content_top = self._content_bounds()
-        card_left = content_left + self.layout.sx(12)
-        card_top = content_top - self.layout.sy(12)
-        title_y = card_top - self.layout.sy(2)
-        line_gap = max(self.layout.sy(17), self.layout.ss(14))
+        card_left = content_left + self.layout.sx(16)
+        card_top = content_top - self.layout.sy(16)
+        title_y = card_top - self.layout.sy(6)
+        line_gap = max(self.layout.sy(20), self.layout.ss(16))
         self.instructions_title_text.x = card_left
         self.instructions_title_text.y = title_y
         self.instructions_title_text.font_size = self.layout.ss(13)
@@ -4790,10 +4790,10 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
 
     def _draw_instructions_card(self) -> None:
         content_left, _, content_bottom, content_top = self._content_bounds()
-        card_left = content_left + self.layout.sx(8)
-        card_right = content_left + self.layout.sx(214)
-        card_top = content_top - self.layout.sy(8)
-        card_bottom = card_top - self.layout.sy(76)
+        card_left = content_left + self.layout.sx(12)
+        card_right = content_left + self.layout.sx(234)
+        card_top = content_top - self.layout.sy(12)
+        card_bottom = card_top - self.layout.sy(92)
         arcade.draw_lrbt_rectangle_filled(
             card_left,
             card_right,
