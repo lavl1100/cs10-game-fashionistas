@@ -86,11 +86,13 @@ SETTINGS_CONTROL_BUTTON_HEIGHT = 42
 SETTINGS_CONTROL_BUTTON_GAP = 14
 SETTINGS_CONTROL_BUTTON_TEXT_SIZE = 18
 SETTINGS_CONTROL_STATUS_SIZE = 16
-SETTINGS_PLAYER_PANEL_WIDTH = 520
-SETTINGS_PLAYER_PANEL_HEIGHT = 188
+SETTINGS_PLAYER_PANEL_WIDTH = 540
+SETTINGS_PLAYER_PANEL_HEIGHT = 214
 SETTINGS_PLAYER_PANEL_TOP_OFFSET = 252
 SETTINGS_PLAYER_TITLE_SIZE = 17
-SETTINGS_PLAYER_STATUS_SIZE = 16
+SETTINGS_PLAYER_STATUS_SIZE = 18
+SETTINGS_PLAYER_PROGRESS_BAR_HEIGHT = 9
+SETTINGS_PLAYER_PROGRESS_KNOB_RADIUS = 6
 ACTIVITY_MENU_BACK_BUTTON_WIDTH = 150
 ACTIVITY_MENU_BACK_BUTTON_HEIGHT = 52
 ACTIVITY_MENU_BACK_BUTTON_MARGIN = 24
@@ -202,6 +204,7 @@ class BackgroundMusicPlaylist:
         self._channel: Optional[pygame.mixer.Channel] = None
         self._current_sound: Optional[pygame.mixer.Sound] = None
         self._current_index: Optional[int] = None
+        self._paused_position_ms: Optional[int] = None
         self._started = False
         self._paused = False
         self._available = bool(self.track_paths)
@@ -236,6 +239,7 @@ class BackgroundMusicPlaylist:
             self._channel = None
             self._current_sound = None
             self._current_index = None
+            self._paused_position_ms = None
             self._paused = False
 
     def update(self) -> None:
@@ -259,6 +263,7 @@ class BackgroundMusicPlaylist:
 
         self._current_index = index % len(self._sounds)
         self._current_sound = self._sounds[self._current_index]
+        self._paused_position_ms = None
         self._channel.play(self._current_sound)
         if self._paused:
             self._channel.pause()
@@ -289,6 +294,22 @@ class BackgroundMusicPlaylist:
     def playback_state_label(self) -> str:
         return "Paused" if self._paused else "Playing"
 
+    @property
+    def current_track_progress(self) -> float:
+        if self._channel is None or self._current_sound is None:
+            return 0.0
+        length_seconds = self._current_sound.get_length()
+        if length_seconds <= 0:
+            return 0.0
+        if self._paused and self._paused_position_ms is not None:
+            position_seconds = self._paused_position_ms / 1000.0
+        else:
+            position_ms = self._channel.get_pos()
+            if position_ms < 0:
+                return 0.0
+            position_seconds = position_ms / 1000.0
+        return max(0.0, min(1.0, position_seconds / length_seconds))
+
     def toggle_playback(self) -> None:
         if self._channel is None or not self._sounds:
             return
@@ -298,7 +319,9 @@ class BackgroundMusicPlaylist:
         if self._paused:
             self._channel.unpause()
             self._paused = False
+            self._paused_position_ms = None
             return
+        self._paused_position_ms = max(0, self._channel.get_pos())
         self._channel.pause()
         self._paused = True
 
@@ -2061,11 +2084,11 @@ class ComputerWindowOverlay:
                 self.settings_value_text.text = f"{int(round(self.music.volume * 100))}%"
             panel_left, panel_right, panel_bottom, panel_top, panel_center_x, panel_center_y = self._player_panel_geometry()
             self.controls_label_text.x = panel_center_x
-            self.controls_label_text.y = panel_top - self.layout.sy(26)
+            self.controls_label_text.y = panel_top - self.layout.sy(24)
             self.controls_status_text.x = panel_center_x
-            self.controls_status_text.y = panel_center_y + self.layout.sy(16)
+            self.controls_status_text.y = panel_top - self.layout.sy(56)
             if self.music is not None:
-                self.controls_status_text.text = f"{self.music.current_track_label} | {self.music.playback_state_label}"
+                self.controls_status_text.text = self.music.current_track_label
                 self.play_pause_button.text.text = "Play" if self.music.is_paused else "Pause"
 
     def _slider_geometry(self) -> tuple[float, float, float]:
@@ -2092,6 +2115,14 @@ class ComputerWindowOverlay:
         panel_bottom = panel_center_y - panel_height / 2
         panel_top = panel_center_y + panel_height / 2
         return panel_left, panel_right, panel_bottom, panel_top, panel_center_x, panel_center_y
+
+    def _progress_bar_geometry(self) -> tuple[float, float, float, float]:
+        panel_left, panel_right, _, panel_top, _, _ = self._player_panel_geometry()
+        bar_left = panel_left + self.layout.sx(24)
+        bar_right = panel_right - self.layout.sx(24)
+        bar_center_y = panel_top - self.layout.sy(88)
+        half_height = self.layout.sy(SETTINGS_PLAYER_PROGRESS_BAR_HEIGHT) / 2
+        return bar_left, bar_right, bar_center_y - half_height, bar_center_y + half_height
 
     def _slider_bounds(self) -> tuple[float, float, float, float]:
         slider_left, slider_right, slider_center_y = self._slider_geometry()
@@ -2127,13 +2158,13 @@ class ComputerWindowOverlay:
         self.controls_status_text.font_size = layout.ss(SETTINGS_PLAYER_STATUS_SIZE)
         panel_left, panel_right, panel_bottom, panel_top, panel_center_x, panel_center_y = self._player_panel_geometry()
         panel_width = panel_right - panel_left
-        button_width = min(layout.sx(SETTINGS_CONTROL_BUTTON_WIDTH), (panel_width - layout.sx(32)) / 3)
+        button_width = min(layout.sx(SETTINGS_CONTROL_BUTTON_WIDTH), (panel_width - layout.sx(40)) / 3)
         button_height = layout.sy(SETTINGS_CONTROL_BUTTON_HEIGHT)
         button_gap = layout.sx(SETTINGS_CONTROL_BUTTON_GAP)
         previous_x = panel_center_x - button_width - button_gap
         play_pause_x = previous_x + button_width + button_gap
         next_x = play_pause_x + button_width + button_gap
-        button_y = panel_bottom + layout.sy(40)
+        button_y = panel_bottom + layout.sy(44)
         self.previous_button.update_layout(
             layout,
             previous_x,
@@ -2260,6 +2291,7 @@ class ComputerWindowOverlay:
         self.close_text.draw()
         if self.title == "Settings":
             panel_left, panel_right, panel_bottom, panel_top, panel_center_x, panel_center_y = self._player_panel_geometry()
+            progress_left, progress_right, progress_bottom, progress_top = self._progress_bar_geometry()
             slider_left, slider_right, slider_bottom, slider_top = self._slider_bounds()
             knob_x = self._slider_knob_center_x()
             knob_y = (slider_bottom + slider_top) / 2
@@ -2295,6 +2327,36 @@ class ComputerWindowOverlay:
                 panel_left + self.layout.sx(32),
                 panel_top - self.layout.sy(25),
                 self.layout.ss(5),
+                THEME_DEEP_PURPLE,
+            )
+            progress_fraction = self.music.current_track_progress if self.music is not None else 0.0
+            progress_fill_right = progress_left + (progress_right - progress_left) * progress_fraction
+            arcade.draw_lrbt_rectangle_filled(
+                progress_left,
+                progress_right,
+                progress_bottom,
+                progress_top,
+                THEME_SOFT_LILAC,
+            )
+            arcade.draw_lrbt_rectangle_outline(
+                progress_left,
+                progress_right,
+                progress_bottom,
+                progress_top,
+                THEME_DEEP_PURPLE,
+                2,
+            )
+            arcade.draw_lrbt_rectangle_filled(
+                progress_left,
+                progress_fill_right,
+                progress_bottom,
+                progress_top,
+                THEME_DEEP_PURPLE,
+            )
+            arcade.draw_circle_filled(
+                progress_fill_right,
+                (progress_bottom + progress_top) / 2,
+                self.layout.ss(SETTINGS_PLAYER_PROGRESS_KNOB_RADIUS),
                 THEME_DEEP_PURPLE,
             )
             arcade.draw_lrbt_rectangle_filled(
