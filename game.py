@@ -4016,6 +4016,12 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
                 cursor_path=UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH,
             ),
             UpcyclingCutStage(
+                base_path=UPCYCLING_SECOND_ITEM_IMAGE_PATH,
+                guide_path=UPCYCLING_SECOND_ITEM_ALT_IMAGE_PATH,
+                done_path=UPCYCLING_SECOND_ITEM_DONE_IMAGE_PATH,
+                cursor_path=UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH,
+            ),
+            UpcyclingCutStage(
                 base_path=UPCYCLING_THIRD_ITEM_IMAGE_PATH,
                 done_path=UPCYCLING_THIRD_ITEM_DONE_IMAGE_PATH,
                 cursor_path=UPCYCLING_NEEDLE_CURSOR_IMAGE_PATH,
@@ -4029,6 +4035,9 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             UPCYCLING_FIRST_ITEM_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_IMAGE_PATH),
             UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH),
             UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH),
+            UPCYCLING_SECOND_ITEM_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_SECOND_ITEM_IMAGE_PATH),
+            UPCYCLING_SECOND_ITEM_ALT_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_SECOND_ITEM_ALT_IMAGE_PATH),
+            UPCYCLING_SECOND_ITEM_DONE_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_SECOND_ITEM_DONE_IMAGE_PATH),
             UPCYCLING_THIRD_ITEM_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_THIRD_ITEM_IMAGE_PATH),
             UPCYCLING_THIRD_ITEM_DONE_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_THIRD_ITEM_DONE_IMAGE_PATH),
         }
@@ -4187,6 +4196,12 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             if self._cut_guide_visible:
                 return self.first_item_alt_sprite
             return self.first_item_sprite
+        if self._cut_stage_index == 1:
+            if self._cut_complete:
+                return self.second_item_done_sprite
+            if self._cut_guide_visible:
+                return self.second_item_alt_sprite
+            return self.second_item_sprite
         if self._cut_complete:
             return self.third_item_done_sprite
         return self.third_item_sprite
