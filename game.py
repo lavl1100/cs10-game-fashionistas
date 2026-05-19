@@ -711,30 +711,6 @@ class PlayerEnergy:
 
 
 @dataclass
-class CutSpark:
-    """Small visual burst that follows the scissors while cutting."""
-
-    x: float
-    y: float
-    vx: float
-    vy: float
-    spawned_at: float
-    lifetime: float
-    color: arcade.Color
-
-    def position_at(self, now: float) -> tuple[float, float]:
-        age = now - self.spawned_at
-        return self.x + self.vx * age, self.y + self.vy * age
-
-    def alpha_at(self, now: float) -> int:
-        age = now - self.spawned_at
-        if age >= self.lifetime:
-            return 0
-        remaining = 1.0 - (age / self.lifetime)
-        return max(0, min(255, int(255 * remaining)))
-
-
-@dataclass
 class CutCloudPuff:
     """Soft cloud puff used as completion feedback for the cut."""
 
@@ -3935,8 +3911,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._cut_band_width = max(layout.ss(12), layout.sy(10))
         self._cut_path_points: list[tuple[float, float]] = []
         self._cut_path_length = 1.0
-        self._cut_trail: list[tuple[float, float, float]] = []
-        self._cut_sparks: list[CutSpark] = []
+        self._cut_clouds: list[CutCloudPuff] = []
         self._mouse_x = layout.width / 2
         self._mouse_y = layout.height / 2
         self.background_sprite = DrawableSprite(
@@ -4112,21 +4087,25 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             distance_before_segment += segment_length
         return best_distance, best_progress
 
-    def _spawn_cut_sparks(self, x: float, y: float, motion_strength: float) -> None:
+    def _spawn_cut_clouds(self, x: float, y: float, motion_strength: float, burst: bool = False) -> None:
         now = _current_time()
-        spark_count = max(2, min(5, int(motion_strength / max(self.layout.ss(4), 4)) + 2))
-        for _ in range(spark_count):
-            angle = random.uniform(-math.pi / 2, math.pi / 2)
-            speed = random.uniform(self.layout.ss(70), self.layout.ss(140))
-            self._cut_sparks.append(
-                CutSpark(
-                    x=x + random.uniform(-self.layout.ss(4), self.layout.ss(4)),
-                    y=y + random.uniform(-self.layout.ss(4), self.layout.ss(4)),
-                    vx=math.cos(angle) * speed,
-                    vy=math.sin(angle) * speed + self.layout.ss(18),
+        cloud_count = 4 if burst else max(2, min(4, int(motion_strength / max(self.layout.ss(4), 4)) + 1))
+        for _ in range(cloud_count):
+            angle = random.uniform(0.0, math.tau)
+            drift = random.uniform(self.layout.ss(6), self.layout.ss(18))
+            radius = random.uniform(self.layout.ss(12), self.layout.ss(22))
+            lifetime = random.uniform(0.45, 0.9) if burst else random.uniform(0.28, 0.55)
+            alpha = 190 if burst else 130
+            self._cut_clouds.append(
+                CutCloudPuff(
+                    x=x + random.uniform(-self.layout.ss(6), self.layout.ss(6)),
+                    y=y + random.uniform(-self.layout.ss(6), self.layout.ss(6)),
+                    vx=math.cos(angle) * drift * 0.25,
+                    vy=math.sin(angle) * drift * 0.18 + (self.layout.ss(10) if burst else self.layout.ss(4)),
+                    radius=radius,
                     spawned_at=now,
-                    lifetime=random.uniform(0.25, 0.55),
-                    color=(255, random.randint(205, 235), random.randint(220, 250)),
+                    lifetime=lifetime,
+                    alpha=alpha,
                 )
             )
 
@@ -4144,75 +4123,29 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         proximity_bonus = 1.0 - min(1.0, distance / self._cut_band_width)
         progress_gain = (motion_strength / self._cut_path_length) * (0.9 + proximity_bonus)
         self._cut_progress = min(1.0, self._cut_progress + progress_gain)
-        self._cut_trail.append((x, y, _current_time()))
-        self._cut_trail = self._cut_trail[-18:]
-        self._spawn_cut_sparks(x, y, motion_strength)
+        self._spawn_cut_clouds(x, y, motion_strength)
         if self._cut_progress >= 1.0:
             self._cut_complete = True
-            self._cut_trail.clear()
+            self._spawn_cut_clouds(x, y, motion_strength, burst=True)
 
     def _prune_cut_effects(self) -> None:
         now = _current_time()
-        self._cut_sparks = [
-            spark for spark in self._cut_sparks if now - spark.spawned_at <= spark.lifetime
-        ]
-        self._cut_trail = [
-            sample for sample in self._cut_trail if now - sample[2] <= 0.6
+        self._cut_clouds = [
+            cloud for cloud in self._cut_clouds if now - cloud.spawned_at <= cloud.lifetime
         ]
 
-    def _draw_cut_overlay(self) -> None:
-        if len(self._cut_path_points) < 2:
-            return
-
+    def _draw_cut_clouds(self) -> None:
         now = _current_time()
-        dot_spacing = max(self.layout.ss(10), 10.0)
-        base_radius = max(self.layout.ss(2.5), 2.5)
-        completed_length = self._cut_path_length * self._cut_progress
-        distance_before_segment = 0.0
-        for index in range(len(self._cut_path_points) - 1):
-            start_x, start_y = self._cut_path_points[index]
-            end_x, end_y = self._cut_path_points[index + 1]
-            segment_length = math.hypot(end_x - start_x, end_y - start_y)
-            if segment_length <= 0.0:
+        for cloud in self._cut_clouds:
+            x, y, radius, alpha = cloud.state_at(now)
+            if alpha <= 0:
                 continue
-
-            arcade.draw_line(
-                start_x,
-                start_y,
-                end_x,
-                end_y,
-                (236, 183, 226, 90),
-                max(1, self.layout.ss(1.5)),
-            )
-            dot_count = max(2, int(segment_length / dot_spacing))
-            for dot_index in range(dot_count + 1):
-                t = dot_index / dot_count
-                x = start_x + (end_x - start_x) * t
-                y = start_y + (end_y - start_y) * t
-                distance_along_path = distance_before_segment + segment_length * t
-                if distance_along_path <= completed_length:
-                    color = (255, 252, 255, 230)
-                    radius = base_radius * 1.45
-                else:
-                    pulse = 0.5 + 0.5 * math.sin(now * 6.0 + index * 0.75 + dot_index * 0.4)
-                    color = (255, 214, 235, int(85 + 85 * pulse))
-                    radius = base_radius
-                arcade.draw_circle_filled(x, y, radius, color)
-            distance_before_segment += segment_length
-
-        for start_x, start_y, start_time in self._cut_trail:
-            trail_alpha = int(max(0.0, 1.0 - (now - start_time) / 0.6) * 180)
-            if trail_alpha <= 0:
-                continue
-            arcade.draw_circle_filled(start_x, start_y, base_radius * 1.35, (255, 255, 255, trail_alpha))
-
-        for spark in self._cut_sparks:
-            spark_x, spark_y = spark.position_at(now)
-            spark_alpha = spark.alpha_at(now)
-            if spark_alpha <= 0:
-                continue
-            r, g, b = spark.color
-            arcade.draw_circle_filled(spark_x, spark_y, self.layout.ss(2.6), (r, g, b, spark_alpha))
+            outer = max(1.0, radius)
+            mid = max(1.0, radius * 0.68)
+            inner = max(1.0, radius * 0.38)
+            arcade.draw_circle_filled(x, y, outer, (255, 255, 255, alpha))
+            arcade.draw_circle_filled(x - radius * 0.18, y + radius * 0.08, mid, (250, 246, 255, max(0, alpha - 22)))
+            arcade.draw_circle_filled(x + radius * 0.14, y - radius * 0.06, inner, (255, 250, 253, max(0, alpha - 36)))
 
     def _update_mouse_position(self) -> None:
         window = arcade.get_window()
@@ -4253,7 +4186,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             self.first_item_alt_sprite.draw()
         else:
             self.first_item_sprite.draw()
-        self._draw_cut_overlay()
+        self._draw_cut_clouds()
         self.cursor_sprite.draw()
 
     def on_update(self, delta_time: float) -> None:
