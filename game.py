@@ -149,14 +149,14 @@ WARDROBE_CATEGORY_LABELS = {
     "bags": "Bags",
 }
 WARDROBE_CATEGORY_LAYER_ORDER = {
-    "hats": 0,
-    "shirts": 1,
+    "shoes": 0,
+    "skirts": 1,
+    "pants": 1,
+    "shirts": 2,
     "dresses": 2,
     "jackets": 3,
-    "skirts": 4,
-    "pants": 5,
-    "shoes": 6,
-    "bags": 7,
+    "bags": 4,
+    "hats": 5,
 }
 WARDROBE_ITEM_CARD_COLUMNS = 4
 WARDROBE_ITEM_CARD_ROWS = 4
