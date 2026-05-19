@@ -126,6 +126,71 @@ THRIFTING_CLOTHING_IMAGE_PATHS = [
     ASSETS_DIR / "thriftingclothing4.png",
     ASSETS_DIR / "thriftingclothing5.png",
 ]
+WARDROBE_GIRL_IMAGE_PATH = ASSETS_DIR / "closet_girl.png"
+WARDROBE_CATEGORY_ORDER = [
+    "all",
+    "hats",
+    "shirts",
+    "dresses",
+    "jackets",
+    "skirts",
+    "pants",
+    "shoes",
+    "bags",
+]
+WARDROBE_CATEGORY_LABELS = {
+    "all": "All",
+    "hats": "Hats",
+    "shirts": "Shirts",
+    "dresses": "Dresses",
+    "jackets": "Jackets",
+    "skirts": "Skirts",
+    "pants": "Pants",
+    "shoes": "Shoes",
+    "bags": "Bags",
+}
+WARDROBE_CATEGORY_LAYER_ORDER = {
+    "hats": 0,
+    "shirts": 1,
+    "dresses": 2,
+    "jackets": 3,
+    "skirts": 4,
+    "pants": 5,
+    "shoes": 6,
+    "bags": 7,
+}
+WARDROBE_ITEM_CARD_COLUMNS = 4
+WARDROBE_ITEM_CARD_ROWS = 4
+WARDROBE_ITEM_CARD_GAP = 12
+WARDROBE_TABS_WIDTH = 132
+WARDROBE_TABS_HEIGHT = 42
+WARDROBE_TABS_GAP = 10
+WARDROBE_GIRL_PANEL_WIDTH = 232
+WARDROBE_GIRL_PANEL_MARGIN = 16
+WARDROBE_SHIRT_SCALE = 0.34
+WARDROBE_DRESS_SCALE = 0.36
+WARDROBE_JACKET_SCALE = 0.35
+WARDROBE_SKIRT_SCALE = 0.31
+WARDROBE_PANTS_SCALE = 0.31
+WARDROBE_SHOES_SCALE = 0.25
+WARDROBE_BAG_SCALE = 0.25
+WARDROBE_HAT_SCALE = 0.22
+WARDROBE_CLOSET_CATALOG = [
+    ("starter shirt", "shirts", ASSETS_DIR / "closet_starter_shirt.png", 18),
+    ("shirt", "shirts", ASSETS_DIR / "closet_shirt.png", 22),
+    ("shirt 1", "shirts", ASSETS_DIR / "closet_shirt1.png", 24),
+    ("shirt 2", "shirts", ASSETS_DIR / "closet_shirt2.png", 26),
+    ("shirt 3", "shirts", ASSETS_DIR / "closet_shirt3.png", 28),
+    ("jacket", "jackets", ASSETS_DIR / "closet_shirt4.png", 34),
+    ("dress", "dresses", ASSETS_DIR / "closet_dress.png", 36),
+    ("starter skirt", "skirts", ASSETS_DIR / "closet_starter_skirt1.png", 20),
+    ("skirt", "skirts", ASSETS_DIR / "closet_skirt.png", 24),
+    ("pants", "pants", ASSETS_DIR / "closet_pants.png", 28),
+    ("starter shoes", "shoes", ASSETS_DIR / "closet_starter_shoes.png", 20),
+    ("shoes", "shoes", ASSETS_DIR / "closet_shoes.png", 24),
+    ("shoes 1", "shoes", ASSETS_DIR / "closet_shoes1.png", 26),
+    ("bag", "bags", ASSETS_DIR / "closet_bag.png", 22),
+]
 THRIFTING_RACK_SIZE = 12
 THRIFTING_STARTING_MONEY = 100
 THRIFTING_XP_PER_LEVEL = 500
