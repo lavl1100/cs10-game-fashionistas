@@ -3899,6 +3899,72 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
 class UpcyclingGameOverlay(ComputerWindowOverlay):
     """A windowed upcycling screen with a background image."""
 
+    @staticmethod
+    def _build_cut_path_template(image_path: Path) -> list[tuple[float, float]]:
+        """Extract a cut target from the garment artwork itself.
+
+        The shirt PNG has a clear lower hem/guide line. We sample the bottom
+        contour from the opaque pixels so the game responds to the art instead
+        of a hand-tuned guess.
+        """
+        try:
+            texture = arcade.load_texture(str(image_path))
+            image = texture.image.convert("RGBA")
+        except Exception:
+            return []
+
+        width, height = image.size
+        opaque = [[image.getpixel((x, y))[3] > 0 for x in range(width)] for y in range(height)]
+
+        search_top = int(height * 0.45)
+        search_bottom = int(height * 0.80)
+        best_left: Optional[int] = None
+        best_right: Optional[int] = None
+        best_span = 0
+
+        for y in range(search_top, search_bottom):
+            row = opaque[y]
+            x = 0
+            while x < width:
+                while x < width and not row[x]:
+                    x += 1
+                start = x
+                while x < width and row[x]:
+                    x += 1
+                end = x - 1
+                if start < width and end >= start:
+                    span = end - start + 1
+                    if span > best_span:
+                        best_span = span
+                        best_left = start
+                        best_right = end
+
+        if best_left is None or best_right is None or best_right <= best_left:
+            return []
+
+        sample_step = max(6, width // 240)
+        raw_points: list[tuple[float, float]] = []
+        for x in range(best_left, best_right + 1, sample_step):
+            y = None
+            for yy in range(height - 1, -1, -1):
+                if opaque[yy][x]:
+                    y = yy
+                    break
+            if y is not None:
+                raw_points.append((x / max(width - 1, 1), y / max(height - 1, 1)))
+
+        if len(raw_points) < 2:
+            return []
+
+        smoothed_points: list[tuple[float, float]] = []
+        for index, (x, _) in enumerate(raw_points):
+            start = max(0, index - 2)
+            end = min(len(raw_points), index + 3)
+            y = sum(point[1] for point in raw_points[start:end]) / (end - start)
+            smoothed_points.append((x, y))
+
+        return smoothed_points
+
     def __init__(
         self,
         layout: GameLayout,
@@ -3909,6 +3975,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._cut_complete = False
         self._cut_progress = 0.0
         self._cut_band_width = max(layout.ss(12), layout.sy(10))
+        self._cut_path_template = self._build_cut_path_template(UPCYCLING_FIRST_ITEM_IMAGE_PATH)
         self._cut_path_points: list[tuple[float, float]] = []
         self._cut_path_length = 1.0
         self._cut_clouds: list[CutCloudPuff] = []
@@ -3984,15 +4051,30 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         content_left, content_right, content_bottom, content_top = self._content_bounds()
         content_width = max(1.0, content_right - content_left)
         content_height = max(1.0, content_top - content_bottom)
-        center_y = content_bottom + content_height * 0.52
-        wave = content_height * 0.06
-        points = [
-            (content_left + content_width * 0.18, center_y - wave * 0.75),
-            (content_left + content_width * 0.34, center_y + wave * 0.25),
-            (content_left + content_width * 0.50, center_y - wave * 0.40),
-            (content_left + content_width * 0.66, center_y + wave * 0.35),
-            (content_right - content_width * 0.18, center_y - wave * 0.60),
-        ]
+        garment_width = content_width * UPCYCLING_GARMENT_SCALE
+        garment_height = content_height * UPCYCLING_GARMENT_SCALE
+        garment_left = (content_left + content_right) / 2 - garment_width / 2
+        garment_bottom = (content_bottom + content_top) / 2 - garment_height / 2
+
+        if self._cut_path_template:
+            points = [
+                (
+                    garment_left + x_ratio * garment_width,
+                    garment_bottom + y_ratio * garment_height,
+                )
+                for x_ratio, y_ratio in self._cut_path_template
+            ]
+        else:
+            center_y = content_bottom + content_height * 0.52
+            wave = content_height * 0.06
+            points = [
+                (content_left + content_width * 0.18, center_y - wave * 0.75),
+                (content_left + content_width * 0.34, center_y + wave * 0.25),
+                (content_left + content_width * 0.50, center_y - wave * 0.40),
+                (content_left + content_width * 0.66, center_y + wave * 0.35),
+                (content_right - content_width * 0.18, center_y - wave * 0.60),
+            ]
+
         self._cut_path_points = points
         self._cut_path_length = 0.0
         for index in range(len(points) - 1):
@@ -4182,8 +4264,6 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self.background_sprite.draw()
         if self._cut_complete:
             self.first_item_done_sprite.draw()
-        elif self._cut_progress > 0.0:
-            self.first_item_alt_sprite.draw()
         else:
             self.first_item_sprite.draw()
         self._draw_cut_clouds()
