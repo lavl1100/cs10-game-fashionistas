@@ -4153,6 +4153,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         )
         self._mouse_x = layout.width / 2
         self._mouse_y = layout.height / 2
+        self._status_popup_bounds = (0.0, 0.0, 0.0, 0.0)
         self.background_sprite = DrawableSprite(
             _make_sprite(
                 UPCYCLING_BACKGROUND_IMAGE_PATH,
@@ -4706,13 +4707,20 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             text.font_size = self.layout.ss(11)
 
         if self._status_message_timer > 0.0 and self._status_message:
+            popup_width = min(self.layout.sx(360), max(0.0, content_right - content_left - self.layout.sx(24)))
+            popup_height = self.layout.sy(42)
+            popup_left = (content_left + content_right - popup_width) / 2
+            popup_top = content_top - self.layout.sy(12)
+            popup_bottom = popup_top - popup_height
+            self._status_popup_bounds = (popup_left, popup_bottom, popup_width, popup_height)
             self.status_text.text = self._status_message
             self.status_text.color = self._status_message_color
-            self.status_text.x = (content_left + content_right) / 2
-            self.status_text.y = content_top - self.layout.sy(18)
+            self.status_text.x = popup_left + popup_width / 2
+            self.status_text.y = popup_bottom + popup_height / 2
             self.status_text.font_size = self.layout.ss(15)
         else:
             self.status_text.text = ""
+            self._status_popup_bounds = (0.0, 0.0, 0.0, 0.0)
 
     def on_draw(self) -> None:
         super().on_draw()
@@ -4721,6 +4729,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._draw_cut_clouds()
         self._draw_instructions_card()
         if self.status_text.text:
+            self._draw_status_popup()
             self.status_text.draw()
         if self._scissors_visible and not self._cut_complete:
             self._active_cursor_sprite().draw()
@@ -4749,6 +4758,26 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self.instructions_title_text.draw()
         for text in self.instructions_texts:
             text.draw()
+
+    def _draw_status_popup(self) -> None:
+        left, bottom, width, height = self._status_popup_bounds
+        right = left + width
+        top = bottom + height
+        arcade.draw_lrbt_rectangle_filled(
+            left,
+            right,
+            bottom,
+            top,
+            (255, 255, 255, 235),
+        )
+        arcade.draw_lrbt_rectangle_outline(
+            left,
+            right,
+            bottom,
+            top,
+            THRIFTING_SUCCESS_COLOR,
+            2,
+        )
 
     def on_update(self, delta_time: float) -> None:
         if not self._screen_ready:
