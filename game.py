@@ -84,6 +84,7 @@ ACTIVITY_MENU_BACK_BUTTON_WIDTH = 150
 ACTIVITY_MENU_BACK_BUTTON_HEIGHT = 52
 ACTIVITY_MENU_BACK_BUTTON_MARGIN = 24
 THRIFTING_BUTTON_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
+UPCYCLING_BUTTON_IMAGE_PATH = ASSETS_DIR / "upcycling_button.png"
 THRIFTING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
 UPCYCLING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "upcycling.png"
 UPCYCLING_FIRST_ITEM_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1.png"
@@ -3549,6 +3550,8 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
                 button_height,
                 (248, 214, 233),
                 self.on_open_upcycling,
+                image_path=UPCYCLING_BUTTON_IMAGE_PATH,
+                crop_image_to_fit=True,
                 text_size=layout.ss(24),
             )
         else:
