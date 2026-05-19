@@ -2094,7 +2094,7 @@ class ComputerWindowOverlay:
             self.controls_label_text.x = panel_center_x
             self.controls_label_text.y = panel_center_y + self.layout.sy(40)
             self.controls_status_text.x = panel_center_x
-            self.controls_status_text.y = panel_center_y + self.layout.sy(12)
+            self.controls_status_text.y = panel_center_y - self.layout.sy(4)
             if self.music is not None:
                 self.controls_status_text.text = self.music.current_track_label
                 self.play_pause_button.text.text = "Play" if self.music.is_paused else "Pause"
