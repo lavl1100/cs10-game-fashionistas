@@ -101,8 +101,6 @@ THRIFTING_BUTTON_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
 UPCYCLING_BUTTON_IMAGE_PATH = ASSETS_DIR / "upcycling_button.png"
 THRIFTING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
 UPCYCLING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "upcycling.png"
-GAME_CURSOR_IMAGE_PATH = ASSETS_DIR / "cursor.png"
-GAME_CURSOR_SIZE = 40
 UPCYCLING_FIRST_ITEM_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1.png"
 UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1a.png"
 UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1b.png"
@@ -773,49 +771,6 @@ class DrawableSprite:
         self._sprite_list.append(sprite)
 
 
-class GameCursor:
-    """Shared native cursor for non-upcycling screens."""
-
-    def __init__(self) -> None:
-        self._texture = arcade.load_texture(str(GAME_CURSOR_IMAGE_PATH))
-        self._cursor = None
-
-    def _ensure_cursor(self):
-        if self._cursor is None:
-            from pyglet.image import ImageData
-            from pyglet.window import ImageMouseCursor
-
-            # The image is designed like a stylized pointer, so the hotspot
-            # sits near the top-left corner rather than the center.
-            cursor_image = self._texture.image.convert("RGBA")
-            image_data = ImageData(
-                cursor_image.width,
-                cursor_image.height,
-                "RGBA",
-                cursor_image.tobytes(),
-                pitch=-cursor_image.width * 4,
-            )
-            self._cursor = ImageMouseCursor(image_data, 0, 0)
-        return self._cursor
-
-    def apply(self, window: arcade.Window) -> None:
-        window.set_mouse_cursor(self._ensure_cursor())
-        window.set_mouse_visible(True)
-
-    def hide(self, window: arcade.Window) -> None:
-        window.set_mouse_cursor(None)
-        window.set_mouse_visible(False)
-
-    def update_layout(self, layout: GameLayout) -> None:
-        pass
-
-    def sync_position(self, x: float, y: float) -> None:
-        pass
-
-    def draw(self) -> None:
-        pass
-
-
 @dataclass(frozen=True)
 class UpcyclingStage:
     base_path: Path
@@ -1477,7 +1432,6 @@ class HomeView(arcade.View):
         self.active_window: Optional[ComputerWindowOverlay] = None
         self.social_media_window: Optional[SocialMediaGameOverlay] = None
         self._pressed_button: Optional[HomeButton] = None
-        self.cursor = GameCursor()
         self._build_buttons()
         self._sync_clock_text()
         self._apply_layout(self.layout)
@@ -1582,7 +1536,6 @@ class HomeView(arcade.View):
             button.update_layout(layout, button_left, center_y)
         if self.active_window is not None:
             self.active_window.update_layout(layout)
-        self.cursor.update_layout(layout)
 
     def _make_open_action(self, label: str) -> Callable[[], None]:
         def open_window() -> None:
@@ -1595,10 +1548,6 @@ class HomeView(arcade.View):
             self._open_window(label)
 
         return open_window
-
-    def _show_system_cursor(self) -> None:
-        if self.window is not None:
-            self.window.set_mouse_visible(True)
 
     def _open_activity_menu(self) -> None:
         self.active_window = ActivityWindowOverlay(
@@ -1694,12 +1643,8 @@ class HomeView(arcade.View):
         self._sync_cursor_mode()
 
     def _sync_cursor_mode(self) -> None:
-        if self.window is None:
-            return
-        if isinstance(self.active_window, UpcyclingGameOverlay):
-            self.cursor.hide(self.window)
-        else:
-            self.cursor.apply(self.window)
+        if self.window is not None:
+            self.window.set_mouse_visible(True)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
@@ -1816,7 +1761,6 @@ class ActivityMenuView(arcade.View):
         self.left_button: Optional[SpriteButtonPanel] = None
         self.right_button: Optional[SpriteButtonPanel] = None
         self.home_button: Optional[SpriteButtonPanel] = None
-        self.cursor = GameCursor()
         self._apply_layout(self.layout)
 
     def _show_home(self) -> None:
@@ -1890,13 +1834,12 @@ class ActivityMenuView(arcade.View):
                 layout.ss(ACTIVITY_MENU_BACK_BUTTON_HEIGHT),
                 layout.ss(22),
             )
-        self.cursor.update_layout(layout)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
         self.music.start()
         if self.window is not None:
-            self.cursor.apply(self.window)
+            self.window.set_mouse_visible(True)
             self._apply_layout(GameLayout(self.window.width, self.window.height))
 
     def on_draw(self) -> None:
@@ -1965,7 +1908,6 @@ class ActivityDetailView(arcade.View):
         self.background_color = background_color
         self.accent_color = accent_color
         self.layout = GameLayout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
-        self.cursor = GameCursor()
         self.title_text = arcade.Text(
             self.title,
             0,
@@ -2048,13 +1990,12 @@ class ActivityDetailView(arcade.View):
                 layout.ss(ACTIVITY_MENU_BACK_BUTTON_HEIGHT),
                 layout.ss(22),
             )
-        self.cursor.update_layout(layout)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
         self.music.start()
         if self.window is not None:
-            self.cursor.apply(self.window)
+            self.window.set_mouse_visible(True)
             self._apply_layout(GameLayout(self.window.width, self.window.height))
 
     def on_draw(self) -> None:
