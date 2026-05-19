@@ -4133,18 +4133,18 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             return alt_path
         return base_path
 
-    def _active_cut_sprite(self) -> arcade.Sprite:
+    def _active_cut_sprite(self) -> DrawableSprite:
         if self._cut_stage_index == 0:
             if self._cut_complete:
-                return self.first_item_done_sprite.sprite
+                return self.first_item_done_sprite
             if self._cut_guide_visible:
-                return self.first_item_alt_sprite.sprite
-            return self.first_item_sprite.sprite
+                return self.first_item_alt_sprite
+            return self.first_item_sprite
         if self._cut_complete:
-            return self.second_item_done_sprite.sprite
+            return self.second_item_done_sprite
         if self._cut_guide_visible:
-            return self.second_item_alt_sprite.sprite
-        return self.second_item_sprite.sprite
+            return self.second_item_alt_sprite
+        return self.second_item_sprite
 
     def _advance_to_next_cut_stage(self) -> None:
         if self._cut_stage_index >= len(self._cut_stage_paths) - 1:
@@ -4419,12 +4419,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
     def on_draw(self) -> None:
         super().on_draw()
         self.background_sprite.draw()
-        if self._cut_complete:
-            self._active_cut_sprite().draw()
-        elif self._cut_guide_visible:
-            self._active_cut_sprite().draw()
-        else:
-            self._active_cut_sprite().draw()
+        self._active_cut_sprite().draw()
         self._draw_cut_clouds()
         if self._scissors_visible and not self._cut_complete:
             self.cursor_sprite.draw()
