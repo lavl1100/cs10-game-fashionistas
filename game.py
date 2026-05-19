@@ -90,6 +90,7 @@ UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1a.png"
 UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH = ASSETS_DIR / "scissors.png"
 UPCYCLING_FIRST_ITEM_SWAP_SECONDS = 3.0
 UPCYCLING_SCISSORS_CURSOR_SIZE = 42
+UPCYCLING_GARMENT_SCALE = 0.60
 UPCYCLING_ART_ASPECT_RATIO = 1500.0 / 900.0
 THRIFTING_ART_ASPECT_RATIO = 1500.0 / 900.0
 THRIFTING_CLOTHING_IMAGE_PATHS = [
@@ -3963,8 +3964,8 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self.background_sprite.center_y = (content_bottom + content_top) / 2
         self.background_sprite.width = content_right - content_left
         self.background_sprite.height = content_top - content_bottom
-        garment_width = (content_right - content_left) * 0.42
-        garment_height = (content_top - content_bottom) * 0.42
+        garment_width = (content_right - content_left) * UPCYCLING_GARMENT_SCALE
+        garment_height = (content_top - content_bottom) * UPCYCLING_GARMENT_SCALE
         for sprite in (self.first_item_sprite, self.first_item_alt_sprite):
             sprite.center_x = (content_left + content_right) / 2
             sprite.center_y = (content_bottom + content_top) / 2
@@ -3977,6 +3978,17 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
     def _sync_cursor_position(self) -> None:
         self.cursor_sprite.center_x = self._mouse_x
         self.cursor_sprite.center_y = self._mouse_y
+
+    def _update_mouse_position(self) -> None:
+        window = arcade.get_window()
+        if window is None:
+            return
+        mouse_x = getattr(window, "_mouse_x", None)
+        mouse_y = getattr(window, "_mouse_y", None)
+        if mouse_x is None or mouse_y is None:
+            return
+        self._mouse_x = mouse_x
+        self._mouse_y = mouse_y
 
     def _set_scissors_cursor_visible(self, visible: bool) -> None:
         window = arcade.get_window()
@@ -4012,6 +4024,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
     def on_update(self, delta_time: float) -> None:
         if not self._screen_ready:
             return
+        self._update_mouse_position()
         self._refresh_animation_state()
         if self._swapped_item:
             self._sync_cursor_position()
