@@ -2118,7 +2118,7 @@ class ComputerWindowOverlay:
             min(self.layout.sy(SETTINGS_PLAYER_PANEL_HEIGHT), self.window_height - self.layout.sy(32)),
         )
         panel_center_x = (left + right) / 2
-        panel_center_y = bottom + panel_height / 2 + self.layout.sy(42)
+        panel_center_y = top - self.layout.sy(SETTINGS_PLAYER_PANEL_TOP_OFFSET)
         panel_left = panel_center_x - panel_width / 2
         panel_right = panel_center_x + panel_width / 2
         panel_bottom = panel_center_y - panel_height / 2
