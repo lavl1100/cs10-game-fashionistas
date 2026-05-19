@@ -174,20 +174,21 @@ WARDROBE_PANTS_SCALE = 0.31
 WARDROBE_SHOES_SCALE = 0.25
 WARDROBE_BAG_SCALE = 0.25
 WARDROBE_HAT_SCALE = 0.22
+WARDROBE_STARTER_ITEM_NAMES = {"starter shirt", "starter skirt", "starter shoes"}
 WARDROBE_CLOSET_CATALOG = [
     ("starter shirt", "shirts", ASSETS_DIR / "closet_starter_shirt.png", 18),
-    ("white camisole", "shirts", ASSETS_DIR / "closet_white_camisole.png", 22),
-    ("blue peplum top", "shirts", ASSETS_DIR / "closet_blue_peplum_top.png", 24),
-    ("patterned babydoll top", "shirts", ASSETS_DIR / "closet_patterned_babydoll_top.png", 26),
-    ("green vest", "jackets", ASSETS_DIR / "closet_green_vest.png", 34),
-    ("white lace dress", "dresses", ASSETS_DIR / "closet_white_lace_dress.png", 36),
+    ("white camisole", "shirts", ASSETS_DIR / "closet_white_camisole.png", 58),
+    ("blue peplum top", "shirts", ASSETS_DIR / "closet_blue_peplum_top.png", 62),
+    ("patterned babydoll top", "shirts", ASSETS_DIR / "closet_patterned_babydoll_top.png", 66),
+    ("green vest", "jackets", ASSETS_DIR / "closet_green_vest.png", 64),
+    ("white lace dress", "dresses", ASSETS_DIR / "closet_white_lace_dress.png", 68),
     ("starter skirt", "skirts", ASSETS_DIR / "closet_starter_skirt1.png", 20),
-    ("green plaid skirt", "skirts", ASSETS_DIR / "closet_green_plaid_skirt.png", 24),
-    ("star design pants", "pants", ASSETS_DIR / "closet_star_design_pants.png", 28),
+    ("green plaid skirt", "skirts", ASSETS_DIR / "closet_green_plaid_skirt.png", 60),
+    ("star design pants", "pants", ASSETS_DIR / "closet_star_design_pants.png", 64),
     ("starter shoes", "shoes", ASSETS_DIR / "closet_starter_shoes.png", 20),
-    ("green shoes", "shoes", ASSETS_DIR / "closet_green_shoes.png", 24),
-    ("black platform shoes", "shoes", ASSETS_DIR / "closet_black_platform_shoes.png", 26),
-    ("crossbody bag", "bags", ASSETS_DIR / "closet_crossbody_bag.png", 22),
+    ("green shoes", "shoes", ASSETS_DIR / "closet_green_shoes.png", 58),
+    ("black platform shoes", "shoes", ASSETS_DIR / "closet_black_platform_shoes.png", 64),
+    ("crossbody bag", "bags", ASSETS_DIR / "closet_crossbody_bag.png", 62),
 ]
 THRIFTING_RACK_SIZE = 12
 THRIFTING_STARTING_MONEY = 100
@@ -2683,6 +2684,7 @@ class WardrobeState:
     catalog: list[WardrobeCatalogItem]
     owned_ids: set[str]
     equipped_by_category: dict[str, str]
+    store_order_ids: list[str]
 
     @classmethod
     def create_default(cls) -> "WardrobeState":
@@ -2693,23 +2695,27 @@ class WardrobeState:
         owned_ids = {
             item.item_id
             for item in catalog
-            if item.name in {"starter shirt", "starter skirt", "starter shoes"}
+            if item.name in WARDROBE_STARTER_ITEM_NAMES
         }
         equipped_by_category = {
             "shirts": "shirts:starter shirt",
             "skirts": "skirts:starter skirt",
             "shoes": "shoes:starter shoes",
         }
-        return cls(catalog, owned_ids, equipped_by_category)
+        store_order_ids = [
+            item.item_id
+            for item in catalog
+            if item.name not in WARDROBE_STARTER_ITEM_NAMES
+        ]
+        return cls(catalog, owned_ids, equipped_by_category, store_order_ids)
 
     def items_for_category(self, category: str, owned_only: bool = False) -> list[WardrobeCatalogItem]:
-        items = [
-            item
-            for item in self.catalog
-            if category == "all" or item.category == category
-        ]
+        items = [item for item in self.catalog if category == "all" or item.category == category]
         if owned_only:
             items = [item for item in items if item.item_id in self.owned_ids]
+        else:
+            item_lookup = {item.item_id: item for item in items}
+            items = [item_lookup[item_id] for item_id in self.store_order_ids if item_id in item_lookup]
         return items
 
     def is_owned(self, item: WardrobeCatalogItem) -> bool:
@@ -2747,6 +2753,9 @@ class WardrobeState:
             return False, "Not enough money for that item."
         wallet.amount -= item.price
         self.owned_ids.add(item.item_id)
+        if item.item_id in self.store_order_ids:
+            self.store_order_ids.remove(item.item_id)
+        self.store_order_ids.append(item.item_id)
         return True, f"Bought {item.name.title()} for ${item.price}."
 
 
