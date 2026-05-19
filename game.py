@@ -160,7 +160,7 @@ WARDROBE_CATEGORY_LAYER_ORDER = {
 }
 WARDROBE_ITEM_CARD_COLUMNS = 4
 WARDROBE_ITEM_CARD_ROWS = 4
-WARDROBE_ITEM_CARD_GAP = 12
+WARDROBE_ITEM_CARD_GAP = 10
 WARDROBE_TABS_WIDTH = 132
 WARDROBE_TABS_HEIGHT = 42
 WARDROBE_TABS_GAP = 10
@@ -641,6 +641,29 @@ def _make_sprite(
     sprite.center_x = center_x
     sprite.center_y = center_y
     return sprite
+
+
+def _wrap_wardrobe_title(title: str) -> str:
+    """Wrap longer clothing names onto two lines so they stay inside the card."""
+    words = title.title().split()
+    if len(words) <= 1:
+        return title.title()
+    if len(words) == 2:
+        return title.title()
+
+    best_split = 1
+    best_width = float("inf")
+    for split_index in range(1, len(words)):
+        first_line = " ".join(words[:split_index])
+        second_line = " ".join(words[split_index:])
+        widest_line = max(len(first_line), len(second_line))
+        if widest_line < best_width:
+            best_width = widest_line
+            best_split = split_index
+
+    first_line = " ".join(words[:best_split])
+    second_line = " ".join(words[best_split:])
+    return f"{first_line}\n{second_line}"
 
 
 def _make_panel(
@@ -2830,7 +2853,7 @@ class WardrobeItemCard:
         self.panel = DrawableSprite(self._build_panel())
         self.item_sprite = DrawableSprite(self._build_item_sprite())
         self.title_text = arcade.Text(
-            item.name.title(),
+            _wrap_wardrobe_title(item.name),
             center_x,
             center_y - height * 0.27,
             THEME_TEXT_PURPLE,
@@ -2859,8 +2882,8 @@ class WardrobeItemCard:
         return _make_panel(self.center_x, self.center_y, self.width, self.height, fill, 230)
 
     def _build_item_sprite(self) -> arcade.Sprite:
-        sprite_height = self.height * 0.58
-        sprite_width = self.width * 0.78
+        sprite_height = self.height * 0.64
+        sprite_width = self.width * 0.84
         icon_center_y = self.center_y + self.height * 0.08
         if _path_exists(self.item.image_path):
             texture = arcade.load_texture(str(self.item.image_path))
@@ -3043,11 +3066,13 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
 
     def _content_bounds(self) -> tuple[float, float, float, float]:
         left, right, bottom, top = self._bounds()
+        padding_x = self.layout.sx(22)
+        padding_y = self.layout.sy(18)
         return (
-            left + self.layout.sx(16),
-            right - self.layout.sx(16),
-            bottom + self.layout.sy(16),
-            top - self.layout.window_header_height - self.layout.sy(16),
+            left + padding_x,
+            right - padding_x,
+            bottom + padding_y,
+            top - self.layout.window_header_height - padding_y,
         )
 
     def _girl_bounds(self) -> tuple[float, float, float, float]:
@@ -3116,8 +3141,8 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         grid_width = max(1.0, grid_right - grid_left)
         grid_height = max(1.0, content_top - content_bottom)
         gap = self.layout.sx(WARDROBE_ITEM_CARD_GAP)
-        card_width = min(self.layout.sx(112), (grid_width - gap * (WARDROBE_ITEM_CARD_COLUMNS - 1)) / WARDROBE_ITEM_CARD_COLUMNS)
-        card_height = min(self.layout.sy(104), (grid_height - gap * (WARDROBE_ITEM_CARD_ROWS - 1)) / WARDROBE_ITEM_CARD_ROWS)
+        card_width = min(self.layout.sx(140), (grid_width - gap * (WARDROBE_ITEM_CARD_COLUMNS - 1)) / WARDROBE_ITEM_CARD_COLUMNS)
+        card_height = min(self.layout.sy(124), (grid_height - gap * (WARDROBE_ITEM_CARD_ROWS - 1)) / WARDROBE_ITEM_CARD_ROWS)
         return card_width, card_height
 
     def _card_position(self, index: int) -> tuple[float, float]:
@@ -3221,14 +3246,14 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
     def _sync_overlay_text(self) -> None:
         content_left, content_right, content_bottom, content_top = self._content_bounds()
         girl_left, girl_right, girl_bottom, girl_top = self._girl_bounds()
-        self.title_note_text.x = content_left
-        self.title_note_text.y = content_top - self.layout.sy(10)
+        self.title_note_text.x = content_left + self.layout.sx(4)
+        self.title_note_text.y = content_top - self.layout.sy(12)
         self.title_note_text.text = "build looks here" if self.mode == "closet" else "shop new pieces"
-        self.wallet_text.x = content_left
+        self.wallet_text.x = content_left + self.layout.sx(4)
         self.wallet_text.y = content_bottom + self.layout.sy(18)
         self.wallet_text.text = f"Money: ${self.wallet.amount}"
         self.message_text.x = (girl_right + content_right) / 2
-        self.message_text.y = content_bottom + self.layout.sy(34)
+        self.message_text.y = content_bottom + self.layout.sy(42)
         self.message_text.text = self.message if self.message_timer > 0.0 else ""
         self.empty_text.x = (content_left + content_right) / 2
         self.empty_text.y = (girl_bottom + girl_top) / 2
@@ -3237,10 +3262,10 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         """Give the wardrobe screens extra room for the tab stack and preview panel."""
         max_width = max(0.0, layout.width - layout.window_margin * 2)
         max_height = max(0.0, layout.height - layout.window_margin * 2)
-        width = min(layout.sx(700), max_width)
-        height = min(layout.sy(520), max_height)
-        width = max(min(layout.sx(560), max_width), width)
-        height = max(min(layout.sy(440), max_height), height)
+        width = min(layout.sx(920), max_width)
+        height = min(layout.sy(600), max_height)
+        width = max(min(layout.sx(780), max_width), width)
+        height = max(min(layout.sy(540), max_height), height)
         return width, height
 
     def _apply_wardrobe_layout(self, layout: GameLayout) -> None:
