@@ -1,6 +1,11 @@
 import arcade
 import random
 
+UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
+UI_FONT_NAME = "Kenney Future Narrow"
+
+arcade.load_font(UI_FONT_PATH)
+
 SCREEN_WIDTH = 900
 SCREEN_HEIGHT = 650
 SCREEN_TITLE = "Thrift vs Fast Fashion Impact Game"
@@ -67,6 +72,7 @@ class ThriftGame(arcade.Window):
             0,
             arcade.color.BLACK,
             12,
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -76,6 +82,7 @@ class ThriftGame(arcade.Window):
             130,
             arcade.color.BLACK,
             12,
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -85,6 +92,7 @@ class ThriftGame(arcade.Window):
             170,
             arcade.color.BLACK,
             16,
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -94,6 +102,7 @@ class ThriftGame(arcade.Window):
             148,
             arcade.color.DARK_GRAY,
             14,
+            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         )
@@ -103,6 +112,7 @@ class ThriftGame(arcade.Window):
             84,
             arcade.color.BLACK,
             16,
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -112,6 +122,7 @@ class ThriftGame(arcade.Window):
             58,
             arcade.color.BLACK,
             16,
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -121,6 +132,7 @@ class ThriftGame(arcade.Window):
             34,
             arcade.color.DARK_GRAY,
             14,
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )
@@ -130,6 +142,7 @@ class ThriftGame(arcade.Window):
             58,
             arcade.color.RED,
             16,
+            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         )

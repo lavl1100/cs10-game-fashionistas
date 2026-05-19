@@ -18,6 +18,11 @@ from enum import Enum
 
 import arcade
 
+UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
+UI_FONT_NAME = "Kenney Future Narrow"
+
+arcade.load_font(UI_FONT_PATH)
+
 # ── Window ────────────────────────────────────────────────────────────────────
 W, H  = 1100, 720
 TITLE = "FASHIONISTAS ♡"
@@ -73,6 +78,7 @@ class _TB:
         if key not in self._c:
             self._c[key] = arcade.Text(text, x, y, color,
                                        font_size=size, bold=bold,
+                                       font_name=UI_FONT_NAME,
                                        anchor_x=ax, anchor_y=ay)
         else:
             t = self._c[key]
