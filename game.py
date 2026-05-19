@@ -136,6 +136,7 @@ SOCIAL_MEDIA_CARD_LIFE_FILL = THEME_LAVENDER
 SOCIAL_MEDIA_MODAL_OVERLAY = (255, 226, 239, 180)
 SOCIAL_MEDIA_CARD_HEIGHT = 148
 SOCIAL_MEDIA_CARD_GAP = 10
+SOCIAL_MEDIA_ENERGY_RECHARGE_PER_MINUTE = 5.0
 SOCIAL_MEDIA_SIDEBAR_MIN_WIDTH = 236
 SOCIAL_MEDIA_SIDEBAR_MAX_WIDTH = 292
 SOCIAL_MEDIA_COMPOSE_WIDTH = 650
@@ -692,6 +693,7 @@ class PlayerEnergy:
     current: int
     maximum: int = 10
     cooldown_ends_at: float = 0.0
+    recharge_progress: float = 0.0
 
     def percentage_text(self) -> str:
         if self.maximum <= 0:
@@ -2485,6 +2487,47 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
     def _clamp_scroll(self) -> None:
         self.scroll = max(0.0, min(self.scroll, self._max_scroll()))
+
+    def _wrap_text(self, text: str, max_width: float, font_size: float) -> list[str]:
+        if max_width <= 0.0:
+            return [text]
+
+        max_chars = max(16, int(max_width / max(1.0, font_size * 0.58)))
+        words = text.split()
+        if not words:
+            return [text]
+
+        lines: list[str] = []
+        current_line = words[0]
+        for word in words[1:]:
+            candidate = f"{current_line} {word}"
+            if len(candidate) <= max_chars:
+                current_line = candidate
+            else:
+                lines.append(current_line)
+                current_line = word
+        lines.append(current_line)
+        return lines
+
+    def _post_card_layout(self, post: SocialMediaPost, width: float) -> tuple[float, list[str]]:
+        pad_x = self.layout.sx(12)
+        text_font_size = self.layout.ss(12)
+        lines = self._wrap_text(post.text, max(0.0, width - pad_x * 2), text_font_size)
+        bar_height = self.layout.sy(22)
+        line_height = max(self.layout.sy(15), self.layout.ss(14))
+        stars_height = self.layout.sy(18)
+        stats_height = self.layout.sy(22)
+        required_height = (
+            bar_height
+            + self.layout.sy(16)
+            + len(lines) * line_height
+            + self.layout.sy(12)
+            + stars_height
+            + self.layout.sy(12)
+            + stats_height
+            + self.layout.sy(18)
+        )
+        return max(self.layout.sy(SOCIAL_MEDIA_CARD_HEIGHT), required_height), lines
 
     def _create_post(self, ptype: SocialMediaPostType) -> None:
         if self._cooldown_active():
