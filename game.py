@@ -84,6 +84,7 @@ ACTIVITY_MENU_BACK_BUTTON_HEIGHT = 52
 ACTIVITY_MENU_BACK_BUTTON_MARGIN = 24
 THRIFTING_BUTTON_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
 THRIFTING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
+UPCYCLING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "upcycling.png"
 THRIFTING_ART_ASPECT_RATIO = 1500.0 / 900.0
 THRIFTING_CLOTHING_IMAGE_PATHS = [
     ASSETS_DIR / "thriftingclothing.png",
@@ -1281,12 +1282,20 @@ class HomeView(arcade.View):
         self.active_window = ActivityWindowOverlay(
             self.layout,
             self._close_activity_window,
+            self._open_upcycling_game,
             self._open_thrifting_game,
             self.music,
         )
 
     def _close_activity_window(self) -> None:
         self.active_window = None
+
+    def _open_upcycling_game(self) -> None:
+        self.active_window = UpcyclingGameOverlay(
+            self.layout,
+            self._open_activity_menu,
+            self.music,
+        )
 
     def _open_thrifting_game(self) -> None:
         self.active_window = ThriftingGameOverlay(
@@ -3409,6 +3418,7 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
         self,
         layout: GameLayout,
         on_close: Callable[[], None],
+        on_open_upcycling: Callable[[], None],
         on_open_thrifting: Callable[[], None],
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
@@ -3416,6 +3426,7 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
         self.upcycling_button = None
         self.thrifting_button = None
         self._selected_label = "Choose an activity"
+        self.on_open_upcycling = on_open_upcycling
         self.on_open_thrifting = on_open_thrifting
         self.selection_text = arcade.Text(
             "Choose an activity",
@@ -3457,7 +3468,7 @@ class ActivityWindowOverlay(ComputerWindowOverlay):
                 button_width,
                 button_height,
                 (248, 214, 233),
-                lambda: self._select_activity("Upcycling Station"),
+                self.on_open_upcycling,
                 text_size=layout.ss(24),
             )
         else:
@@ -3839,6 +3850,64 @@ class ThriftingGameOverlay(ComputerWindowOverlay):
             self._select_next(1)
         elif key == arcade.key.SPACE:
             self._buy_current_item()
+
+    def on_resize(self, width: float, height: float) -> None:
+        self.update_layout(GameLayout(width, height))
+
+
+class UpcyclingGameOverlay(ComputerWindowOverlay):
+    """A windowed upcycling screen with a background image."""
+
+    def __init__(
+        self,
+        layout: GameLayout,
+        on_close: Callable[[], None],
+        music: Optional[BackgroundMusicPlaylist] = None,
+    ) -> None:
+        self._screen_ready = False
+        self.background_sprite = DrawableSprite(
+            _make_sprite(
+                UPCYCLING_BACKGROUND_IMAGE_PATH,
+                layout.width / 2,
+                layout.height / 2,
+                layout.width,
+                layout.height,
+                THRIFTING_CONTENT_FILL,
+            )
+        )
+        super().__init__(layout, "Upcycling Station", on_close, music)
+        self._screen_ready = True
+        self.update_layout(layout)
+
+    def _content_bounds(self) -> tuple[float, float, float, float]:
+        left, right, bottom, top = self._bounds()
+        return (
+            left + self.layout.sx(18),
+            right - self.layout.sx(18),
+            bottom + self.layout.sy(18),
+            top - self.layout.window_header_height - self.layout.sy(16),
+        )
+
+    def _sync_background(self) -> None:
+        content_left, content_right, content_bottom, content_top = self._content_bounds()
+        self.background_sprite.center_x = (content_left + content_right) / 2
+        self.background_sprite.center_y = (content_bottom + content_top) / 2
+        self.background_sprite.width = content_right - content_left
+        self.background_sprite.height = content_top - content_bottom
+
+    def update_layout(self, layout: GameLayout) -> None:
+        super().update_layout(layout)
+        if not self._screen_ready:
+            return
+        self._sync_background()
+
+    def on_draw(self) -> None:
+        super().on_draw()
+        self.background_sprite.draw()
+
+    def on_key_press(self, key: int, modifiers: int) -> None:
+        if key == arcade.key.ESCAPE:
+            self._close()
 
     def on_resize(self, width: float, height: float) -> None:
         self.update_layout(GameLayout(width, height))
