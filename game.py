@@ -88,6 +88,9 @@ UPCYCLING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "upcycling.png"
 UPCYCLING_FIRST_ITEM_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1.png"
 UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1a.png"
 UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1b.png"
+UPCYCLING_SECOND_ITEM_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing2.png"
+UPCYCLING_SECOND_ITEM_ALT_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing2a.png"
+UPCYCLING_SECOND_ITEM_DONE_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing2b.png"
 UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH = ASSETS_DIR / "scissors.png"
 UPCYCLING_SCISSORS_CURSOR_SIZE = 64
 UPCYCLING_GARMENT_SCALE = 0.60
@@ -104,6 +107,7 @@ THRIFTING_RACK_SIZE = 12
 THRIFTING_STARTING_MONEY = 100
 THRIFTING_XP_PER_LEVEL = 500
 THRIFTING_LEVEL_UP_REWARD = 100
+UPCYCLING_STAGE_HOLD_SECONDS = 3.0
 FAST_FASHION_FABRICS = ["polyester", "nylon", "rayon", "acrylic"]
 ECO_FABRICS = ["cotton", "linen", "wool", "hemp"]
 UI_FONT_PATH = ":resources:/fonts/ttf/Kenney/Kenney_Future_Narrow.ttf"
@@ -3989,14 +3993,33 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
         self._screen_ready = False
+        self._cut_stage_index = 0
         self._cut_complete = False
         self._cut_progress = 0.0
         self._cut_band_width = max(layout.ss(12), layout.sy(10))
-        self._cut_path_template = self._build_cut_path_template(UPCYCLING_FIRST_ITEM_IMAGE_PATH)
+        self._cut_stage_paths = [
+            (
+                UPCYCLING_FIRST_ITEM_IMAGE_PATH,
+                UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH,
+                UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH,
+            ),
+            (
+                UPCYCLING_SECOND_ITEM_IMAGE_PATH,
+                UPCYCLING_SECOND_ITEM_ALT_IMAGE_PATH,
+                UPCYCLING_SECOND_ITEM_DONE_IMAGE_PATH,
+            ),
+        ]
+        self._cut_path_templates = {
+            base_path: self._build_cut_path_template(base_path)
+            for base_path, _, _ in self._cut_stage_paths
+        }
         self._cut_alpha_masks = {
             UPCYCLING_FIRST_ITEM_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_IMAGE_PATH),
             UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH),
             UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH),
+            UPCYCLING_SECOND_ITEM_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_SECOND_ITEM_IMAGE_PATH),
+            UPCYCLING_SECOND_ITEM_ALT_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_SECOND_ITEM_ALT_IMAGE_PATH),
+            UPCYCLING_SECOND_ITEM_DONE_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_SECOND_ITEM_DONE_IMAGE_PATH),
         }
         self._cut_path_points: list[tuple[float, float]] = []
         self._cut_path_length = 1.0
@@ -4004,6 +4027,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._cut_guide_visible = False
         self._scissors_visible = False
         self._cut_intro_elapsed = 0.0
+        self._cut_stage_complete_elapsed = 0.0
         self._cut_guide_reveal_delay = 0.2
         self._scissors_reveal_delay = 0.55
         self._mouse_x = layout.width / 2
@@ -4051,6 +4075,39 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
                 crop_to_fit=True,
             )
         )
+        self.second_item_sprite = DrawableSprite(
+            _make_sprite(
+                UPCYCLING_SECOND_ITEM_IMAGE_PATH,
+                layout.width / 2,
+                layout.height / 2,
+                layout.width * 0.42,
+                layout.height * 0.42,
+                THRIFTING_CONTENT_FILL,
+                crop_to_fit=True,
+            )
+        )
+        self.second_item_alt_sprite = DrawableSprite(
+            _make_sprite(
+                UPCYCLING_SECOND_ITEM_ALT_IMAGE_PATH,
+                layout.width / 2,
+                layout.height / 2,
+                layout.width * 0.42,
+                layout.height * 0.42,
+                THRIFTING_CONTENT_FILL,
+                crop_to_fit=True,
+            )
+        )
+        self.second_item_done_sprite = DrawableSprite(
+            _make_sprite(
+                UPCYCLING_SECOND_ITEM_DONE_IMAGE_PATH,
+                layout.width / 2,
+                layout.height / 2,
+                layout.width * 0.42,
+                layout.height * 0.42,
+                THRIFTING_CONTENT_FILL,
+                crop_to_fit=True,
+            )
+        )
         self.cursor_sprite = DrawableSprite(
             _make_sprite(
                 UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH,
@@ -4065,12 +4122,43 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._screen_ready = True
         self.update_layout(layout)
 
+    def _current_cut_stage_paths(self) -> tuple[Path, Path, Path]:
+        return self._cut_stage_paths[min(self._cut_stage_index, len(self._cut_stage_paths) - 1)]
+
     def _active_cut_sprite_path(self) -> Path:
+        base_path, alt_path, done_path = self._current_cut_stage_paths()
         if self._cut_complete:
-            return UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH
+            return done_path
         if self._cut_guide_visible:
-            return UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH
-        return UPCYCLING_FIRST_ITEM_IMAGE_PATH
+            return alt_path
+        return base_path
+
+    def _active_cut_sprite(self) -> arcade.Sprite:
+        if self._cut_stage_index == 0:
+            if self._cut_complete:
+                return self.first_item_done_sprite.sprite
+            if self._cut_guide_visible:
+                return self.first_item_alt_sprite.sprite
+            return self.first_item_sprite.sprite
+        if self._cut_complete:
+            return self.second_item_done_sprite.sprite
+        if self._cut_guide_visible:
+            return self.second_item_alt_sprite.sprite
+        return self.second_item_sprite.sprite
+
+    def _advance_to_next_cut_stage(self) -> None:
+        if self._cut_stage_index >= len(self._cut_stage_paths) - 1:
+            return
+
+        self._cut_stage_index += 1
+        self._cut_complete = False
+        self._cut_progress = 0.0
+        self._cut_intro_elapsed = 0.0
+        self._cut_stage_complete_elapsed = 0.0
+        self._cut_guide_visible = False
+        self._scissors_visible = False
+        self._build_cut_path()
+        self._refresh_animation_state()
 
     def _content_bounds(self) -> tuple[float, float, float, float]:
         left, right, bottom, top = self._bounds()
@@ -4090,13 +4178,15 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         garment_left = (content_left + content_right) / 2 - garment_width / 2
         garment_bottom = (content_bottom + content_top) / 2 - garment_height / 2
 
-        if self._cut_path_template:
+        base_path, _, _ = self._current_cut_stage_paths()
+        cut_path_template = self._cut_path_templates.get(base_path, [])
+        if cut_path_template:
             points = [
                 (
                     garment_left + x_ratio * garment_width,
                     garment_bottom + y_ratio * garment_height,
                 )
-                for x_ratio, y_ratio in self._cut_path_template
+                for x_ratio, y_ratio in cut_path_template
             ]
         else:
             center_y = content_bottom + content_height * 0.52
@@ -4154,6 +4244,11 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self.first_item_done_sprite.center_y = (content_bottom + content_top) / 2
         self.first_item_done_sprite.width = garment_width
         self.first_item_done_sprite.height = garment_height
+        for sprite in (self.second_item_sprite, self.second_item_alt_sprite, self.second_item_done_sprite):
+            sprite.center_x = (content_left + content_right) / 2
+            sprite.center_y = (content_bottom + content_top) / 2
+            sprite.width = garment_width
+            sprite.height = garment_height
         self.cursor_sprite.width = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
         self.cursor_sprite.height = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
         self._sync_cursor_position()
@@ -4207,9 +4302,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         """Return True when the cursor is on an opaque garment pixel."""
         sprite_path = self._active_cut_sprite_path()
         alpha_mask, image_width, image_height = self._cut_alpha_masks.get(sprite_path, (b"", 0, 0))
-        sprite = self.first_item_done_sprite.sprite if self._cut_complete else (
-            self.first_item_alt_sprite.sprite if self._cut_guide_visible else self.first_item_sprite.sprite
-        )
+        sprite = self._active_cut_sprite()
         if not alpha_mask or image_width <= 0 or image_height <= 0:
             return sprite.collides_with_point((x, y))
 
@@ -4271,6 +4364,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._spawn_cut_clouds(x, y, motion_strength)
         if self._cut_progress >= 1.0:
             self._cut_complete = True
+            self._cut_stage_complete_elapsed = 0.0
             self._spawn_cut_clouds(x, y, motion_strength, burst=True)
 
     def _prune_cut_effects(self) -> None:
@@ -4326,11 +4420,11 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         super().on_draw()
         self.background_sprite.draw()
         if self._cut_complete:
-            self.first_item_done_sprite.draw()
+            self._active_cut_sprite().draw()
         elif self._cut_guide_visible:
-            self.first_item_alt_sprite.draw()
+            self._active_cut_sprite().draw()
         else:
-            self.first_item_sprite.draw()
+            self._active_cut_sprite().draw()
         self._draw_cut_clouds()
         if self._scissors_visible and not self._cut_complete:
             self.cursor_sprite.draw()
@@ -4338,7 +4432,11 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
     def on_update(self, delta_time: float) -> None:
         if not self._screen_ready:
             return
-        if not self._cut_complete:
+        if self._cut_complete:
+            self._cut_stage_complete_elapsed += delta_time
+            if self._cut_stage_complete_elapsed >= UPCYCLING_STAGE_HOLD_SECONDS:
+                self._advance_to_next_cut_stage()
+        else:
             self._cut_intro_elapsed += delta_time
             if self._cut_intro_elapsed >= self._cut_guide_reveal_delay:
                 self._cut_guide_visible = True
