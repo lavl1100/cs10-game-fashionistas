@@ -2378,7 +2378,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
     def _handle_energy_depleted(self) -> None:
         self._notify(
-            "Out of energy - keep going until the timer ends ♡",
+            "Out of energy - recharging at 5 energy per minute ♡",
             SOCIAL_MEDIA_CARD_MUTED,
         )
 
@@ -2386,6 +2386,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.energy_state.cooldown_ends_at = 0.0
         self.day += 1
         self.day_timer = 0.0
+        self.energy_state.recharge_progress = 0.0
         self.energy = self.max_energy
         self._notify(f"Day {self.day} ♡ energy restored!", (255, 160, 198))
 
@@ -2476,11 +2477,15 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             self.max_energy = min(20, self.max_energy + 2)
 
     def _max_scroll(self) -> float:
-        _, _, feed_bottom, feed_top = self._feed_bounds()
+        feed_left, feed_right, feed_bottom, feed_top = self._feed_bounds()
         content_top = feed_top - self.layout.sy(44)
         content_bottom = feed_bottom + self.layout.sy(12)
         visible_height = max(0.0, content_top - content_bottom)
-        total_height = len(self.posts) * self.layout.sy(SOCIAL_MEDIA_CARD_HEIGHT)
+        card_width = max(0.0, feed_right - feed_left - self.layout.sx(8))
+        total_height = 0.0
+        for post in self.posts:
+            card_height, _ = self._post_card_layout(post, card_width)
+            total_height += card_height
         if self.posts:
             total_height += (len(self.posts) - 1) * self.layout.sy(SOCIAL_MEDIA_CARD_GAP)
         return max(0.0, total_height - visible_height)
@@ -2886,11 +2891,11 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             self.empty_hint_text.draw()
             return
 
-        card_height = self.layout.sy(SOCIAL_MEDIA_CARD_HEIGHT)
         card_gap = self.layout.sy(SOCIAL_MEDIA_CARD_GAP)
         content_top = feed_top - self.layout.sy(44)
         content_bottom = feed_bottom + self.layout.sy(12)
         y = content_top + self.scroll
+        card_width = max(0.0, feed_right - feed_left - self.layout.sx(8))
         try:
             window = arcade.get_window()
         except RuntimeError:
@@ -2906,13 +2911,15 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             )
         try:
             for slot, post in enumerate(self.posts):
+                card_height, lines = self._post_card_layout(post, card_width)
                 self._draw_post_card(
                     post,
                     feed_left + self.layout.sx(4),
                     y - card_height,
-                    max(0.0, feed_right - feed_left - self.layout.sx(8)),
+                    card_width,
                     card_height,
                     slot,
+                    lines,
                 )
                 y -= card_height + card_gap
         finally:
@@ -2927,11 +2934,11 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         width: float,
         height: float,
         slot: int,
+        lines: list[str],
     ) -> None:
         bar_fill, bar_border, dot_color = post.ptype.bar
         bar_height = self.layout.sy(22)
         pad_x = self.layout.sx(12)
-        inner_width = max(0.0, width - pad_x * 2)
         body_fill = SOCIAL_MEDIA_CARD_FILL
         if post.viral_flash > 0:
             body_fill = _lerp_color(SOCIAL_MEDIA_CARD_FILL, bar_fill, min(1.0, (post.viral_flash % 0.4) / 0.4 * 0.25))
@@ -2984,24 +2991,26 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
                 bold=True,
                 ).draw()
 
-        max_chars = max(28, int(inner_width / max(1.0, self.layout.ss(6.2))))
-        short_text = post.text[:max_chars] + ("..." if len(post.text) > max_chars else "")
-        arcade.Text(
-            short_text,
-            x + pad_x,
-            y + height - bar_height - self.layout.sy(18),
-            SOCIAL_MEDIA_CARD_TEXT,
-            self.layout.ss(12),
-            font_name=UI_FONT_NAME,
-            anchor_x="left",
-            anchor_y="center",
-        ).draw()
+        line_height = max(self.layout.sy(15), self.layout.ss(14))
+        text_y = y + height - bar_height - self.layout.sy(16) - line_height / 2
+        for line in lines:
+            arcade.Text(
+                line,
+                x + pad_x,
+                text_y,
+                SOCIAL_MEDIA_CARD_TEXT,
+                self.layout.ss(12),
+                font_name=UI_FONT_NAME,
+                anchor_x="left",
+                anchor_y="center",
+            ).draw()
+            text_y -= line_height
 
         stars = max(1, round(post.quality * 5))
         arcade.Text(
             "★" * stars + "☆" * (5 - stars),
             x + pad_x,
-            y + height - bar_height - self.layout.sy(42),
+            text_y - self.layout.sy(10),
             SOCIAL_MEDIA_CARD_GOLD,
             self.layout.ss(12),
             font_name=UI_FONT_NAME,
@@ -3149,6 +3158,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
         dt = min(delta_time, 0.1)
         now = _current_time()
+        self._update_energy_recharge(dt)
         if self.energy_state.cooldown_ends_at > 0.0:
             if self._cooldown_remaining(now) <= 0.0:
                 self._finish_cooldown()
@@ -3191,6 +3201,21 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             notif.timer -= dt
         self.notifications = [notif for notif in self.notifications if notif.timer > 0]
         self._clamp_scroll()
+
+    def _update_energy_recharge(self, dt: float) -> None:
+        if self.energy >= self.max_energy:
+            self.energy_state.recharge_progress = 0.0
+            return
+
+        self.energy_state.recharge_progress += dt * (SOCIAL_MEDIA_ENERGY_RECHARGE_PER_MINUTE / 60.0)
+        gained = int(self.energy_state.recharge_progress)
+        if gained <= 0:
+            return
+
+        self.energy = min(self.max_energy, self.energy + gained)
+        self.energy_state.recharge_progress -= gained
+        if self.energy >= self.max_energy:
+            self.energy_state.recharge_progress = 0.0
 
     def on_draw(self) -> None:
         super().on_draw()
