@@ -4325,23 +4325,25 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         cooldown_active = self._cooldown_active(now)
         post_cooldown_active = self._post_cooldown_active(now)
 
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("sidebar", "followers_label"),
             "followers",
             sidebar_left + self.layout.sx(18),
             follower_label_y,
             SOCIAL_MEDIA_CARD_MUTED,
             self.layout.ss(10),
-            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         ).draw()
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("sidebar", "followers_value"),
             _format_compact_count(self.followers),
             sidebar_left + (sidebar_right - sidebar_left) / 2,
             follower_value_y,
             SOCIAL_MEDIA_CARD_TEXT,
             self.layout.ss(32),
-            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         ).draw()
@@ -4350,24 +4352,26 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         progress_y = day_label_y - self.layout.sy(20)
         progress_width = max(0.0, sidebar_right - sidebar_left - self.layout.sx(28))
         if cooldown_active:
-            arcade.Text(
+            _update_cached_text(
+                self._text_cache,
+                ("sidebar", "day_status"),
                 f"cooldown  ♡  {self._format_duration(self._cooldown_remaining(now))} left",
                 sidebar_left + (sidebar_right - sidebar_left) / 2,
                 day_label_y,
                 SOCIAL_MEDIA_CARD_MUTED,
                 self.layout.ss(10),
-                font_name=UI_FONT_NAME,
                 anchor_x="center",
                 anchor_y="center",
             ).draw()
         else:
-            arcade.Text(
+            _update_cached_text(
+                self._text_cache,
+                ("sidebar", "day_status"),
                 f"Season {(self.day - 1) // 7 + 1}  ♡  Day {(self.day - 1) % 7 + 1}",
                 sidebar_left + (sidebar_right - sidebar_left) / 2,
                 day_label_y,
                 SOCIAL_MEDIA_CARD_MUTED,
                 self.layout.ss(10),
-                font_name=UI_FONT_NAME,
                 anchor_x="center",
                 anchor_y="center",
             ).draw()
@@ -4395,13 +4399,14 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             (225, 125, 165),
         )
 
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("sidebar", "energy_label"),
             "energy",
             sidebar_left + (sidebar_right - sidebar_left) / 2,
             energy_label_y,
             SOCIAL_MEDIA_CARD_MUTED,
             self.layout.ss(10),
-            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         ).draw()
@@ -4427,24 +4432,26 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
                 ("posting cooldown", self._format_duration(self._post_cooldown_remaining(now)))
             )
         row_y = stats_top
-        for label, value in stats_rows:
-            arcade.Text(
+        for index, (label, value) in enumerate(stats_rows):
+            _update_cached_text(
+                self._text_cache,
+                ("sidebar", "stat_label", index),
                 label,
                 sidebar_left + self.layout.sx(14),
                 row_y,
                 SOCIAL_MEDIA_CARD_MUTED,
                 self.layout.ss(10),
-                font_name=UI_FONT_NAME,
                 anchor_x="left",
                 anchor_y="center",
             ).draw()
-            arcade.Text(
+            _update_cached_text(
+                self._text_cache,
+                ("sidebar", "stat_value", index),
                 value,
                 sidebar_right - self.layout.sx(14),
                 row_y,
                 SOCIAL_MEDIA_CARD_TEXT,
                 self.layout.ss(10),
-                font_name=UI_FONT_NAME,
                 anchor_x="right",
                 anchor_y="center",
             ).draw()
@@ -4452,13 +4459,14 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
         if self.sidebar_post_button is not None:
             self.sidebar_post_button.draw()
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("sidebar", "footer_hint"),
             "Space or tap POST",
             sidebar_left + (sidebar_right - sidebar_left) / 2,
             sidebar_bottom + self.layout.sy(12),
             SOCIAL_MEDIA_CARD_MUTED,
             self.layout.ss(8),
-            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         ).draw()
@@ -4573,13 +4581,14 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             arcade.draw_circle_filled(dot_x, dot_y, self.layout.ss(3.5), dot_color)
             arcade.draw_circle_outline(dot_x, dot_y, self.layout.ss(3.5), bar_border, 1)
 
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("post", slot, "type"),
             post.ptype.label,
             x + width / 2,
             y + height - bar_height / 2,
             SOCIAL_MEDIA_CARD_TEXT,
             self.layout.ss(10),
-            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
             bold=True,
@@ -4591,41 +4600,44 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             pill_x = x + width - pill_w - self.layout.sx(8)
             pill_y = y + height - bar_height + self.layout.sy(3)
             _draw_pill(pill_x, pill_y, pill_w, pill_h, SOCIAL_MEDIA_CARD_GOLD, (200, 160, 50))
-            arcade.Text(
+            _update_cached_text(
+                self._text_cache,
+                ("post", slot, "viral"),
                 "VIRAL",
                 pill_x + pill_w / 2,
                 pill_y + pill_h / 2,
                 SOCIAL_MEDIA_CARD_TEXT,
                 self.layout.ss(8),
-                font_name=UI_FONT_NAME,
                 anchor_x="center",
                 anchor_y="center",
                 bold=True,
-                ).draw()
+            ).draw()
 
         line_height = max(self.layout.sy(15), self.layout.ss(14))
         text_y = y + height - bar_height - self.layout.sy(16) - line_height / 2
-        for line in lines:
-            arcade.Text(
+        for line_index, line in enumerate(lines):
+            _update_cached_text(
+                self._text_cache,
+                ("post", slot, "line", line_index),
                 line,
                 x + pad_x,
                 text_y,
                 SOCIAL_MEDIA_CARD_TEXT,
                 self.layout.ss(12),
-                font_name=UI_FONT_NAME,
                 anchor_x="left",
                 anchor_y="center",
             ).draw()
             text_y -= line_height
 
         stars = max(1, round(post.quality * 5))
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("post", slot, "stars"),
             "★" * stars + "☆" * (5 - stars),
             x + pad_x,
             text_y - self.layout.sy(10),
             SOCIAL_MEDIA_CARD_GOLD,
             self.layout.ss(12),
-            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         ).draw()
@@ -4640,33 +4652,36 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         )
         stat_font_size = max(self.layout.ss(9), self.layout.ss(10))
         stats_y = y + self.layout.sy(34)
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("post", slot, "likes"),
             f"♡ {post.likes:,}",
             x + pad_x,
             stats_y,
             SOCIAL_MEDIA_CARD_MUTED,
             stat_font_size,
-            font_name=UI_FONT_NAME,
             anchor_x="left",
             anchor_y="center",
         ).draw()
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("post", slot, "shares"),
             f"↺ {post.shares:,}",
             x + width / 2,
             stats_y,
             SOCIAL_MEDIA_CARD_MUTED,
             stat_font_size,
-            font_name=UI_FONT_NAME,
             anchor_x="center",
             anchor_y="center",
         ).draw()
-        arcade.Text(
+        _update_cached_text(
+            self._text_cache,
+            ("post", slot, "comments"),
             f"✉ {post.comments:,}",
             x + width - pad_x,
             stats_y,
             SOCIAL_MEDIA_CARD_MUTED,
             stat_font_size,
-            font_name=UI_FONT_NAME,
             anchor_x="right",
             anchor_y="center",
         ).draw()
@@ -4698,13 +4713,14 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
                 (255, 230, 240, bg_alpha),
                 (235, 185, 210, bg_alpha),
             )
-            arcade.Text(
+            _update_cached_text(
+                self._text_cache,
+                ("notification", index),
                 notif.text,
                 feed_right - self.layout.sx(16),
                 y + self.layout.sy(5),
                 (*notif.color[:3], alpha),
                 self.layout.ss(11),
-                font_name=UI_FONT_NAME,
                 anchor_x="right",
                 anchor_y="center",
             ).draw()
