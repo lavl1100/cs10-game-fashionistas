@@ -176,19 +176,18 @@ WARDROBE_BAG_SCALE = 0.25
 WARDROBE_HAT_SCALE = 0.22
 WARDROBE_CLOSET_CATALOG = [
     ("starter shirt", "shirts", ASSETS_DIR / "closet_starter_shirt.png", 18),
-    ("shirt", "shirts", ASSETS_DIR / "closet_shirt.png", 22),
-    ("shirt 1", "shirts", ASSETS_DIR / "closet_shirt1.png", 24),
-    ("shirt 2", "shirts", ASSETS_DIR / "closet_shirt2.png", 26),
-    ("shirt 3", "shirts", ASSETS_DIR / "closet_shirt3.png", 28),
-    ("jacket", "jackets", ASSETS_DIR / "closet_shirt4.png", 34),
-    ("dress", "dresses", ASSETS_DIR / "closet_dress.png", 36),
+    ("white camisole", "shirts", ASSETS_DIR / "closet_white_camisole.png", 22),
+    ("blue peplum top", "shirts", ASSETS_DIR / "closet_blue_peplum_top.png", 24),
+    ("patterned babydoll top", "shirts", ASSETS_DIR / "closet_patterned_babydoll_top.png", 26),
+    ("green vest", "jackets", ASSETS_DIR / "closet_green_vest.png", 34),
+    ("white lace dress", "dresses", ASSETS_DIR / "closet_white_lace_dress.png", 36),
     ("starter skirt", "skirts", ASSETS_DIR / "closet_starter_skirt1.png", 20),
-    ("skirt", "skirts", ASSETS_DIR / "closet_skirt.png", 24),
-    ("pants", "pants", ASSETS_DIR / "closet_pants.png", 28),
+    ("green plaid skirt", "skirts", ASSETS_DIR / "closet_green_plaid_skirt.png", 24),
+    ("star design pants", "pants", ASSETS_DIR / "closet_star_design_pants.png", 28),
     ("starter shoes", "shoes", ASSETS_DIR / "closet_starter_shoes.png", 20),
-    ("shoes", "shoes", ASSETS_DIR / "closet_shoes.png", 24),
-    ("shoes 1", "shoes", ASSETS_DIR / "closet_shoes1.png", 26),
-    ("bag", "bags", ASSETS_DIR / "closet_bag.png", 22),
+    ("green shoes", "shoes", ASSETS_DIR / "closet_green_shoes.png", 24),
+    ("black platform shoes", "shoes", ASSETS_DIR / "closet_black_platform_shoes.png", 26),
+    ("crossbody bag", "bags", ASSETS_DIR / "closet_crossbody_bag.png", 22),
 ]
 THRIFTING_RACK_SIZE = 12
 THRIFTING_STARTING_MONEY = 100
