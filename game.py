@@ -87,8 +87,8 @@ THRIFTING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "thrifting.png"
 UPCYCLING_BACKGROUND_IMAGE_PATH = ASSETS_DIR / "upcycling.png"
 UPCYCLING_FIRST_ITEM_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1.png"
 UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1a.png"
+UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH = ASSETS_DIR / "upcyclingclothing1b.png"
 UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH = ASSETS_DIR / "scissors.png"
-UPCYCLING_FIRST_ITEM_SWAP_SECONDS = 3.0
 UPCYCLING_SCISSORS_CURSOR_SIZE = 64
 UPCYCLING_GARMENT_SCALE = 0.60
 UPCYCLING_ART_ASPECT_RATIO = 1500.0 / 900.0
@@ -708,6 +708,30 @@ class PlayerEnergy:
         if self.maximum <= 0:
             return "0%"
         return f"{int(round((self.current / self.maximum) * 100))}%"
+
+
+@dataclass
+class CutSpark:
+    """Small visual burst that follows the scissors while cutting."""
+
+    x: float
+    y: float
+    vx: float
+    vy: float
+    spawned_at: float
+    lifetime: float
+    color: arcade.Color
+
+    def position_at(self, now: float) -> tuple[float, float]:
+        age = now - self.spawned_at
+        return self.x + self.vx * age, self.y + self.vy * age
+
+    def alpha_at(self, now: float) -> int:
+        age = now - self.spawned_at
+        if age >= self.lifetime:
+            return 0
+        remaining = 1.0 - (age / self.lifetime)
+        return max(0, min(255, int(255 * remaining)))
 
 
 class ThriftInfoBox:
