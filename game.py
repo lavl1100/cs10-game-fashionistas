@@ -1306,6 +1306,7 @@ class HomeView(arcade.View):
                 self.social_media_window = SocialMediaGameOverlay(
                     self.layout,
                     lambda: self._close_window(label),
+                    self.progress,
                     self.energy,
                     self.music,
                 )
@@ -2246,10 +2247,12 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self,
         layout: GameLayout,
         on_close: Callable[[], None],
+        progress: Optional[PlayerProgress] = None,
         energy: Optional[PlayerEnergy] = None,
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
         self._social_ready = False
+        self.progress = progress
         self.energy_state = energy if energy is not None else PlayerEnergy(10, 10)
         self.followers = 100
         self.day = 1
@@ -2259,6 +2262,9 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.viral_count = 0
         self.eco_impact = 0
         self.total_likes = 0
+        self._day_followers_start = self.followers
+        self._day_likes_start = self.total_likes
+        self._day_eco_start = self.eco_impact
         self.milestone_index = 0
         self.post_cooldown_ends_at = 0.0
         self._followers_fraction = 0.0
@@ -2375,6 +2381,8 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         if self._cooldown_active(current_time):
             return
 
+        if reason == "day":
+            self._award_daily_experience()
         self.energy = 0
         self.day_timer = self.day_length
         self.energy_state.cooldown_ends_at = current_time + SOCIAL_MEDIA_COOLDOWN_SECONDS
@@ -2471,6 +2479,33 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.notifications.append(SocialMediaNotification(text, 3.5, color))
         if len(self.notifications) > SOCIAL_MEDIA_MAX_NOTIFICATIONS:
             self.notifications.pop(0)
+
+    def _award_daily_experience(self) -> None:
+        if self.progress is None:
+            return
+
+        follower_gain = max(0, self.followers - self._day_followers_start)
+        like_gain = max(0, self.total_likes - self._day_likes_start)
+        eco_gain = max(0, self.eco_impact - self._day_eco_start)
+        xp_gain = follower_gain + like_gain + eco_gain
+        if xp_gain <= 0:
+            return
+
+        levels_gained = self.progress.add_experience(xp_gain)
+        self._notify(
+            f"♡  +{xp_gain} XP from today's growth!",
+            SOCIAL_MEDIA_CARD_GOLD if levels_gained > 0 else SOCIAL_MEDIA_CARD_TEXT,
+        )
+        if levels_gained > 0:
+            level_word = "level" if levels_gained == 1 else "levels"
+            self._notify(
+                f"♡  {levels_gained} {level_word} up from your social buzz!",
+                SOCIAL_MEDIA_CARD_GOLD,
+            )
+
+        self._day_followers_start = self.followers
+        self._day_likes_start = self.total_likes
+        self._day_eco_start = self.eco_impact
 
     def _gain_followers(self, count: int) -> None:
         if count <= 0:
@@ -3195,7 +3230,9 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
         total_rate = 0.0
         for post in self.posts:
+            likes_before = post.likes
             post.tick(dt)
+            self.total_likes += max(0, post.likes - likes_before)
             if post.dead:
                 continue
             if not post.is_viral and random.random() < post.ptype.viral_chance * dt:
@@ -3219,7 +3256,6 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             self.followers = max(0, self.followers - 1)
 
         self.posts = [post for post in self.posts if not post.dead]
-        self.total_likes = sum(post.likes for post in self.posts)
         for notif in self.notifications:
             notif.timer -= dt
         self.notifications = [notif for notif in self.notifications if notif.timer > 0]
