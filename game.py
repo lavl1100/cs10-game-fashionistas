@@ -3024,7 +3024,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
 
     def _girl_bounds(self) -> tuple[float, float, float, float]:
         content_left, content_right, content_bottom, content_top = self._content_bounds()
-        panel_width = min(self.layout.sx(WARDROBE_GIRL_PANEL_WIDTH), (content_right - content_left) * 0.32)
+        panel_width = min(self.layout.sx(WARDROBE_GIRL_PANEL_WIDTH), (content_right - content_left) * 0.36)
         left = content_left
         right = left + panel_width
         return left, right, content_bottom, content_top
@@ -3228,6 +3228,16 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         self.empty_text.x = (content_left + content_right) / 2
         self.empty_text.y = (girl_bottom + girl_top) / 2
 
+    def _wardrobe_window_size(self, layout: GameLayout) -> tuple[float, float]:
+        """Give the wardrobe screens extra room for the tab stack and preview panel."""
+        max_width = max(0.0, layout.width - layout.window_margin * 2)
+        max_height = max(0.0, layout.height - layout.window_margin * 2)
+        width = min(layout.sx(700), max_width)
+        height = min(layout.sy(520), max_height)
+        width = max(min(layout.sx(560), max_width), width)
+        height = max(min(layout.sy(440), max_height), height)
+        return width, height
+
     def _apply_wardrobe_layout(self, layout: GameLayout) -> None:
         self._build_tab_buttons()
         self._sync_item_cards()
@@ -3242,6 +3252,8 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         super().update_layout(layout)
         if not self._wardrobe_ready:
             return
+        self.window_width, self.window_height = self._wardrobe_window_size(layout)
+        self._set_center(layout.width / 2, layout.height / 2 - layout.sy(8))
         self._apply_wardrobe_layout(layout)
 
     def on_draw(self) -> None:
