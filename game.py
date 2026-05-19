@@ -204,7 +204,8 @@ class BackgroundMusicPlaylist:
         self._channel: Optional[pygame.mixer.Channel] = None
         self._current_sound: Optional[pygame.mixer.Sound] = None
         self._current_index: Optional[int] = None
-        self._paused_position_ms: Optional[int] = None
+        self._track_started_at: Optional[float] = None
+        self._paused_elapsed_seconds: Optional[float] = None
         self._started = False
         self._paused = False
         self._available = bool(self.track_paths)
@@ -239,7 +240,8 @@ class BackgroundMusicPlaylist:
             self._channel = None
             self._current_sound = None
             self._current_index = None
-            self._paused_position_ms = None
+            self._track_started_at = None
+            self._paused_elapsed_seconds = None
             self._paused = False
 
     def update(self) -> None:
@@ -255,6 +257,8 @@ class BackgroundMusicPlaylist:
             self._current_index = self._sounds.index(current_sound)
         except ValueError:
             self._current_index = None
+        self._track_started_at = time.monotonic()
+        self._paused_elapsed_seconds = None
         self._queue_next_track()
 
     def _play_index(self, index: int) -> None:
@@ -263,7 +267,8 @@ class BackgroundMusicPlaylist:
 
         self._current_index = index % len(self._sounds)
         self._current_sound = self._sounds[self._current_index]
-        self._paused_position_ms = None
+        self._track_started_at = time.monotonic()
+        self._paused_elapsed_seconds = None
         self._channel.play(self._current_sound)
         if self._paused:
             self._channel.pause()
@@ -301,13 +306,12 @@ class BackgroundMusicPlaylist:
         length_seconds = self._current_sound.get_length()
         if length_seconds <= 0:
             return 0.0
-        if self._paused and self._paused_position_ms is not None:
-            position_seconds = self._paused_position_ms / 1000.0
+        if self._paused and self._paused_elapsed_seconds is not None:
+            position_seconds = self._paused_elapsed_seconds
+        elif self._track_started_at is not None:
+            position_seconds = max(0.0, time.monotonic() - self._track_started_at)
         else:
-            position_ms = self._channel.get_pos()
-            if position_ms < 0:
-                return 0.0
-            position_seconds = position_ms / 1000.0
+            position_seconds = 0.0
         return max(0.0, min(1.0, position_seconds / length_seconds))
 
     def toggle_playback(self) -> None:
@@ -319,9 +323,13 @@ class BackgroundMusicPlaylist:
         if self._paused:
             self._channel.unpause()
             self._paused = False
-            self._paused_position_ms = None
+            if self._paused_elapsed_seconds is not None:
+                self._track_started_at = time.monotonic() - self._paused_elapsed_seconds
+            self._paused_elapsed_seconds = None
             return
-        self._paused_position_ms = max(0, self._channel.get_pos())
+        if self._track_started_at is None:
+            self._track_started_at = time.monotonic()
+        self._paused_elapsed_seconds = max(0.0, time.monotonic() - self._track_started_at)
         self._channel.pause()
         self._paused = True
 
