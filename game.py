@@ -2250,6 +2250,9 @@ class ComputerWindowOverlay:
     def _close(self) -> None:
         self.on_close()
 
+    def _can_start_drag(self, x: float, y: float) -> bool:
+        return True
+
     def _release_control_buttons(self) -> None:
         self.previous_button.release()
         self.play_pause_button.release()
@@ -2471,6 +2474,11 @@ class ComputerWindowOverlay:
             if self._hit_test_slider(x, y):
                 self.is_adjusting_volume = True
                 self._set_music_volume_from_x(x)
+                return True
+            if self._can_start_drag(x, y):
+                self.is_dragging = True
+                self.drag_offset_x = x - self.window_x
+                self.drag_offset_y = y - self.window_y
                 return True
             return True
         return False
@@ -5241,6 +5249,11 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
     def _close(self) -> None:
         self._set_scissors_cursor_visible(False)
         super()._close()
+
+    def _can_start_drag(self, x: float, y: float) -> bool:
+        left, right, _, top = self._bounds()
+        header_left, header_right, header_bottom, header_top = self._header_bounds()
+        return left <= x <= right and header_left <= x <= header_right and header_bottom <= y <= header_top
 
     def on_resize(self, width: float, height: float) -> None:
         self.update_layout(GameLayout(width, height))
