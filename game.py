@@ -2447,8 +2447,17 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         button_height = 0.0 if count <= 0 else min(self.layout.sy(58), available_height / count)
         total = count * button_height + (count - 1) * gap
         start_y = modal_bottom + modal_height - self.layout.sy(70) - total
-        button_left = modal_left + self.layout.sx(18)
-        button_width = max(0.0, modal_width - self.layout.sx(36))
+        # Keep the action boxes snug around the text so the labels do not feel oversized.
+        longest_label = max((ptype.label for ptype in self.post_types), key=len, default="")
+        estimated_text_width = len(longest_label) * self.layout.ss(7.0)
+        button_width = max(
+            0.0,
+            min(
+                modal_width - self.layout.sx(24),
+                max(self.layout.sx(140), estimated_text_width + self.layout.sx(34)),
+            ),
+        )
+        button_left = modal_left + (modal_width - button_width) / 2
         geometries: list[tuple[float, float, float, float]] = []
         for index in range(count):
             button_bottom = start_y + (count - 1 - index) * (button_height + gap)
