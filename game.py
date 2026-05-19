@@ -20,6 +20,15 @@ import arcade
 import arcade.shape_list as _shape_list
 import pygame
 
+
+def set_window_mouse_visible(window, visible: bool) -> None:
+    set_visible = getattr(window, "set_mouse_cursor_visible", None)
+    if set_visible is None:
+        set_visible = getattr(window, "set_mouse_platform_visible", None)
+    if set_visible is not None:
+        set_visible(visible)
+
+
 BASE_SCREEN_WIDTH = 800
 BASE_SCREEN_HEIGHT = 600
 DEFAULT_WINDOW_WIDTH = 1280
@@ -1741,7 +1750,7 @@ class HomeView(arcade.View):
 
     def _sync_cursor_mode(self) -> None:
         if self.window is not None:
-            self.window.set_mouse_cursor_visible(True)
+            set_window_mouse_visible(self.window, True)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
@@ -1936,7 +1945,7 @@ class ActivityMenuView(arcade.View):
         arcade.set_background_color(self.background_color)
         self.music.start()
         if self.window is not None:
-            self.window.set_mouse_cursor_visible(True)
+            set_window_mouse_visible(self.window, True)
             self._apply_layout(GameLayout(self.window.width, self.window.height))
 
     def on_draw(self) -> None:
@@ -2092,7 +2101,7 @@ class ActivityDetailView(arcade.View):
         arcade.set_background_color(self.background_color)
         self.music.start()
         if self.window is not None:
-            self.window.set_mouse_cursor_visible(True)
+            set_window_mouse_visible(self.window, True)
             self._apply_layout(GameLayout(self.window.width, self.window.height))
 
     def on_draw(self) -> None:
@@ -6236,7 +6245,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
     def _set_scissors_cursor_visible(self, visible: bool) -> None:
         window = arcade.get_window()
         if window is not None:
-            window.set_mouse_cursor_visible(not visible)
+            set_window_mouse_visible(window, not visible)
 
     def _refresh_animation_state(self) -> None:
         if self._screen_ready:
