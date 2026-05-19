@@ -3001,6 +3001,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         self.selected_category = "all"
         self.message = ""
         self.message_timer = 0.0
+        self.scroll = 0.0
         self.tab_buttons: list[WardrobeTabButton] = []
         self.item_cards: list[WardrobeItemCard] = []
         self.outfit_sprites: dict[str, arcade.Sprite] = {}
@@ -3143,27 +3144,27 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
 
     def _select_category(self, category: str) -> None:
         self.selected_category = category
+        self.scroll = 0.0
         for button in self.tab_buttons:
             button.set_selected(button.category == category)
         self._sync_item_cards()
 
     def _card_columns(self) -> int:
-        if self.mode == "store" and self.selected_category == "all":
-            return 4
         return WARDROBE_ITEM_CARD_COLUMNS
 
     def _card_geometry(self, item_count: int) -> tuple[float, float]:
         grid_left, grid_right, content_bottom, content_top = self._grid_bounds()
         grid_width = max(1.0, grid_right - grid_left)
         grid_height = max(1.0, content_top - content_bottom)
-        gap_scale = 0.6 if self.mode == "store" and self.selected_category == "all" else 1.0
-        gap = self.layout.sx(WARDROBE_ITEM_CARD_GAP) * gap_scale
+        gap = self.layout.sx(WARDROBE_ITEM_CARD_GAP)
         columns = self._card_columns()
         rows = max(1, math.ceil(item_count / columns))
-        card_side = min(
-            (grid_width - gap * (columns - 1)) / columns,
-            (grid_height - gap * (rows - 1)) / rows,
-        )
+        card_side = (grid_width - gap * (columns - 1)) / columns
+        if not (self.mode == "store" and self.selected_category == "all"):
+            card_side = min(
+                card_side,
+                (grid_height - gap * (rows - 1)) / rows,
+            )
         return card_side, card_side
 
     def _card_position(self, index: int, card_width: float, card_height: float, gap: float) -> tuple[float, float]:
@@ -3172,8 +3173,27 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         col = index % columns
         row = index // columns
         x = grid_left + card_width / 2 + col * (card_width + gap)
-        y = content_top - card_height / 2 - row * (card_height + gap)
+        y = content_top - card_height / 2 - row * (card_height + gap) + self.scroll
         return x, y
+
+    def _max_scroll(self) -> float:
+        if self.mode != "store" or self.selected_category != "all":
+            return 0.0
+
+        items = self._display_items()
+        if not items:
+            return 0.0
+
+        grid_left, grid_right, content_bottom, content_top = self._grid_bounds()
+        grid_height = max(1.0, content_top - content_bottom)
+        card_width, card_height = self._card_geometry(len(items))
+        gap = self.layout.sx(WARDROBE_ITEM_CARD_GAP)
+        rows = max(1, math.ceil(len(items) / self._card_columns()))
+        total_height = rows * card_height + (rows - 1) * gap
+        return max(0.0, total_height - grid_height)
+
+    def _clamp_scroll(self) -> None:
+        self.scroll = max(0.0, min(self.scroll, self._max_scroll()))
 
     def _card_detail(self, item: WardrobeCatalogItem) -> str:
         owned = self.wardrobe.is_owned(item)
@@ -3189,8 +3209,8 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
     def _sync_item_cards(self) -> None:
         items = self._display_items()
         card_width, card_height = self._card_geometry(len(items))
-        gap_scale = 0.6 if self.mode == "store" and self.selected_category == "all" else 1.0
-        gap = self.layout.sx(WARDROBE_ITEM_CARD_GAP) * gap_scale
+        gap = self.layout.sx(WARDROBE_ITEM_CARD_GAP)
+        self._clamp_scroll()
         self.item_cards = []
         for index, item in enumerate(items):
             center_x, center_y = self._card_position(index, card_width, card_height, gap)
@@ -3303,6 +3323,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         self.window_width, self.window_height = self._wardrobe_window_size(layout)
         self._set_center(layout.width / 2, layout.height / 2 - layout.sy(8))
         self._apply_wardrobe_layout(layout)
+        self._clamp_scroll()
 
     def on_draw(self) -> None:
         super().on_draw()
@@ -3362,8 +3383,24 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             sprite = self.outfit_sprites.get(category)
             if sprite is not None and sprite.alpha > 0:
                 arcade.draw_sprite(sprite)
-        for card in self.item_cards:
-            card.draw()
+        try:
+            window = arcade.get_window()
+        except RuntimeError:
+            window = None
+        previous_scissor = window.ctx.scissor if window is not None else None
+        if window is not None:
+            window.ctx.scissor = (
+                int(grid_left),
+                int(grid_bottom),
+                int(max(0.0, grid_right - grid_left)),
+                int(max(0.0, grid_top - grid_bottom)),
+            )
+        try:
+            for card in self.item_cards:
+                card.draw()
+        finally:
+            if window is not None:
+                window.ctx.scissor = previous_scissor
         for button in self.tab_buttons:
             button.draw()
         self.title_note_text.draw()
@@ -3379,6 +3416,13 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             else:
                 self.empty_text.text = "No items in this category yet"
             self.empty_text.draw()
+
+    def on_mouse_scroll(self, x: float, y: float, scroll_x: float, scroll_y: float) -> bool:
+        if self.mode == "store" and self.selected_category == "all":
+            self.scroll = max(0.0, min(self._max_scroll(), self.scroll - scroll_y * 35))
+            self._sync_item_cards()
+            return True
+        return False
 
     def _handle_item_activation(self, item: WardrobeCatalogItem) -> None:
         if self.mode == "store":
