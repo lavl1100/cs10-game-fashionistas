@@ -1740,7 +1740,7 @@ class HomeView(arcade.View):
 
     def _sync_cursor_mode(self) -> None:
         if self.window is not None:
-            self.window.set_mouse_visible(True)
+            self.window.set_mouse_cursor_visible(True)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
@@ -1935,7 +1935,7 @@ class ActivityMenuView(arcade.View):
         arcade.set_background_color(self.background_color)
         self.music.start()
         if self.window is not None:
-            self.window.set_mouse_visible(True)
+            self.window.set_mouse_cursor_visible(True)
             self._apply_layout(GameLayout(self.window.width, self.window.height))
 
     def on_draw(self) -> None:
@@ -2091,7 +2091,7 @@ class ActivityDetailView(arcade.View):
         arcade.set_background_color(self.background_color)
         self.music.start()
         if self.window is not None:
-            self.window.set_mouse_visible(True)
+            self.window.set_mouse_cursor_visible(True)
             self._apply_layout(GameLayout(self.window.width, self.window.height))
 
     def on_draw(self) -> None:
@@ -6201,7 +6201,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
     def _set_scissors_cursor_visible(self, visible: bool) -> None:
         window = arcade.get_window()
         if window is not None:
-            window.set_mouse_visible(not visible)
+            window.set_mouse_cursor_visible(not visible)
 
     def _refresh_animation_state(self) -> None:
         if self._screen_ready:
