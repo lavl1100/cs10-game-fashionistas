@@ -83,9 +83,14 @@ SETTINGS_SLIDER_VALUE_SIZE = 16
 SETTINGS_CONTROLS_LABEL_SIZE = 18
 SETTINGS_CONTROL_BUTTON_WIDTH = 92
 SETTINGS_CONTROL_BUTTON_HEIGHT = 42
-SETTINGS_CONTROL_BUTTON_GAP = 12
+SETTINGS_CONTROL_BUTTON_GAP = 14
 SETTINGS_CONTROL_BUTTON_TEXT_SIZE = 18
-SETTINGS_CONTROL_STATUS_SIZE = 15
+SETTINGS_CONTROL_STATUS_SIZE = 16
+SETTINGS_PLAYER_PANEL_WIDTH = 420
+SETTINGS_PLAYER_PANEL_HEIGHT = 176
+SETTINGS_PLAYER_PANEL_TOP_OFFSET = 252
+SETTINGS_PLAYER_TITLE_SIZE = 18
+SETTINGS_PLAYER_STATUS_SIZE = 18
 ACTIVITY_MENU_BACK_BUTTON_WIDTH = 150
 ACTIVITY_MENU_BACK_BUTTON_HEIGHT = 52
 ACTIVITY_MENU_BACK_BUTTON_MARGIN = 24
@@ -1992,13 +1997,13 @@ class ComputerWindowOverlay:
             anchor_y="center",
         )
         self.controls_label_text = arcade.Text(
-            "Music Controls",
+            "Now Playing",
             0,
             0,
             THEME_TEXT_PURPLE,
-            layout.ss(SETTINGS_CONTROLS_LABEL_SIZE),
+            layout.ss(SETTINGS_PLAYER_TITLE_SIZE),
             font_name=UI_FONT_NAME,
-            anchor_x="left",
+            anchor_x="center",
             anchor_y="center",
         )
         self.controls_status_text = arcade.Text(
@@ -2006,9 +2011,9 @@ class ComputerWindowOverlay:
             0,
             0,
             THEME_TEXT_PURPLE,
-            layout.ss(SETTINGS_CONTROL_STATUS_SIZE),
+            layout.ss(SETTINGS_PLAYER_STATUS_SIZE),
             font_name=UI_FONT_NAME,
-            anchor_x="left",
+            anchor_x="center",
             anchor_y="center",
         )
         self.previous_button = self._make_control_button("Prev", self._previous_track)
@@ -2054,11 +2059,11 @@ class ComputerWindowOverlay:
             self.settings_value_text.y = slider_center_y + self.layout.sy(30)
             if self.music is not None:
                 self.settings_value_text.text = f"{int(round(self.music.volume * 100))}%"
-            controls_left, controls_center_y = self._controls_geometry()
-            self.controls_label_text.x = controls_left
-            self.controls_label_text.y = controls_center_y + self.layout.sy(34)
-            self.controls_status_text.x = controls_left
-            self.controls_status_text.y = controls_center_y - self.layout.sy(26)
+            panel_left, panel_right, panel_bottom, panel_top, panel_center_x, panel_center_y = self._player_panel_geometry()
+            self.controls_label_text.x = panel_center_x
+            self.controls_label_text.y = panel_top - self.layout.sy(26)
+            self.controls_status_text.x = panel_center_x
+            self.controls_status_text.y = panel_center_y + self.layout.sy(16)
             if self.music is not None:
                 self.controls_status_text.text = f"{self.music.current_track_label} | {self.music.playback_state_label}"
                 self.play_pause_button.text.text = "Play" if self.music.is_paused else "Pause"
@@ -2070,11 +2075,23 @@ class ComputerWindowOverlay:
         slider_center_y = top - self.layout.sy(SETTINGS_SLIDER_TOP_PADDING)
         return slider_left, slider_right, slider_center_y
 
-    def _controls_geometry(self) -> tuple[float, float]:
-        left, right, _, top = self._bounds()
-        controls_left = left + self.layout.sx(SETTINGS_SLIDER_LEFT_PADDING)
-        controls_center_y = top - self.layout.sy(250)
-        return controls_left, controls_center_y
+    def _player_panel_geometry(self) -> tuple[float, float, float, float, float, float]:
+        left, right, bottom, top = self._bounds()
+        panel_width = max(
+            self.layout.sx(200),
+            min(self.layout.sx(SETTINGS_PLAYER_PANEL_WIDTH), self.window_width - self.layout.sx(48)),
+        )
+        panel_height = max(
+            self.layout.sy(120),
+            min(self.layout.sy(SETTINGS_PLAYER_PANEL_HEIGHT), self.window_height - self.layout.sy(32)),
+        )
+        panel_center_x = (left + right) / 2
+        panel_center_y = bottom + panel_height / 2 + self.layout.sy(42)
+        panel_left = panel_center_x - panel_width / 2
+        panel_right = panel_center_x + panel_width / 2
+        panel_bottom = panel_center_y - panel_height / 2
+        panel_top = panel_center_y + panel_height / 2
+        return panel_left, panel_right, panel_bottom, panel_top, panel_center_x, panel_center_y
 
     def _slider_bounds(self) -> tuple[float, float, float, float]:
         slider_left, slider_right, slider_center_y = self._slider_geometry()
@@ -2106,19 +2123,21 @@ class ComputerWindowOverlay:
         self.close_text.font_size = layout.window_close_font_size
         self.settings_label_text.font_size = layout.ss(SETTINGS_SLIDER_LABEL_SIZE)
         self.settings_value_text.font_size = layout.ss(SETTINGS_SLIDER_VALUE_SIZE)
-        self.controls_label_text.font_size = layout.ss(SETTINGS_CONTROLS_LABEL_SIZE)
-        self.controls_status_text.font_size = layout.ss(SETTINGS_CONTROL_STATUS_SIZE)
-        button_width = layout.sx(SETTINGS_CONTROL_BUTTON_WIDTH)
+        self.controls_label_text.font_size = layout.ss(SETTINGS_PLAYER_TITLE_SIZE)
+        self.controls_status_text.font_size = layout.ss(SETTINGS_PLAYER_STATUS_SIZE)
+        panel_left, panel_right, panel_bottom, panel_top, panel_center_x, panel_center_y = self._player_panel_geometry()
+        panel_width = panel_right - panel_left
+        button_width = min(layout.sx(SETTINGS_CONTROL_BUTTON_WIDTH), (panel_width - layout.sx(32)) / 3)
         button_height = layout.sy(SETTINGS_CONTROL_BUTTON_HEIGHT)
         button_gap = layout.sx(SETTINGS_CONTROL_BUTTON_GAP)
-        controls_left, controls_center_y = self._controls_geometry()
-        previous_x = controls_left + button_width / 2
+        previous_x = panel_center_x - button_width - button_gap
         play_pause_x = previous_x + button_width + button_gap
         next_x = play_pause_x + button_width + button_gap
+        button_y = panel_bottom + layout.sy(40)
         self.previous_button.update_layout(
             layout,
             previous_x,
-            controls_center_y,
+            button_y,
             button_width,
             button_height,
             layout.ss(SETTINGS_CONTROL_BUTTON_TEXT_SIZE),
@@ -2126,7 +2145,7 @@ class ComputerWindowOverlay:
         self.play_pause_button.update_layout(
             layout,
             play_pause_x,
-            controls_center_y,
+            button_y,
             button_width,
             button_height,
             layout.ss(SETTINGS_CONTROL_BUTTON_TEXT_SIZE),
@@ -2134,7 +2153,7 @@ class ComputerWindowOverlay:
         self.next_button.update_layout(
             layout,
             next_x,
-            controls_center_y,
+            button_y,
             button_width,
             button_height,
             layout.ss(SETTINGS_CONTROL_BUTTON_TEXT_SIZE),
@@ -2240,9 +2259,44 @@ class ComputerWindowOverlay:
         )
         self.close_text.draw()
         if self.title == "Settings":
+            panel_left, panel_right, panel_bottom, panel_top, panel_center_x, panel_center_y = self._player_panel_geometry()
             slider_left, slider_right, slider_bottom, slider_top = self._slider_bounds()
             knob_x = self._slider_knob_center_x()
             knob_y = (slider_bottom + slider_top) / 2
+            arcade.draw_lrbt_rectangle_filled(
+                panel_left,
+                panel_right,
+                panel_bottom,
+                panel_top,
+                THEME_LAVENDER,
+            )
+            arcade.draw_lrbt_rectangle_outline(
+                panel_left,
+                panel_right,
+                panel_bottom,
+                panel_top,
+                THEME_DEEP_PURPLE,
+                3,
+            )
+            arcade.draw_lrbt_rectangle_filled(
+                panel_left + self.layout.sx(12),
+                panel_right - self.layout.sx(12),
+                panel_top - self.layout.sy(34),
+                panel_top - self.layout.sy(16),
+                THEME_SOFT_LILAC,
+            )
+            arcade.draw_circle_filled(
+                panel_left + self.layout.sx(18),
+                panel_top - self.layout.sy(25),
+                self.layout.ss(5),
+                THEME_DEEP_PURPLE,
+            )
+            arcade.draw_circle_filled(
+                panel_left + self.layout.sx(32),
+                panel_top - self.layout.sy(25),
+                self.layout.ss(5),
+                THEME_DEEP_PURPLE,
+            )
             arcade.draw_lrbt_rectangle_filled(
                 slider_left,
                 slider_right,
