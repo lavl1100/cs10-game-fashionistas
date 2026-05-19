@@ -2230,6 +2230,7 @@ class HomeView(arcade.View):
         self.music = BackgroundMusicPlaylist(ASSETS_DIR)
         self.layout = GameLayout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
         self.wallet = PlayerWallet(THRIFTING_STARTING_MONEY)
+        self.wardrobe = WardrobeState.create_default()
         self.progress = PlayerProgress()
         self.energy = PlayerEnergy(10, 10)
         self.background_color = THEME_DEEP_PURPLE
@@ -2438,6 +2439,26 @@ class HomeView(arcade.View):
             else:
                 self.social_media_window.update_layout(self.layout)
             self.active_window = self.social_media_window
+            self._sync_cursor_mode()
+            return
+        if label == "closet":
+            self.active_window = ClosetOverlay(
+                self.layout,
+                lambda: self._close_window(label),
+                self.wardrobe,
+                self.wallet,
+                self.music,
+            )
+            self._sync_cursor_mode()
+            return
+        if label == "clothing store":
+            self.active_window = ClothingStoreOverlay(
+                self.layout,
+                lambda: self._close_window(label),
+                self.wardrobe,
+                self.wallet,
+                self.music,
+            )
             self._sync_cursor_mode()
             return
         self.active_window = ComputerWindowOverlay(
