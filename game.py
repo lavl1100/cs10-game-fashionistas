@@ -3979,6 +3979,11 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._cut_path_points: list[tuple[float, float]] = []
         self._cut_path_length = 1.0
         self._cut_clouds: list[CutCloudPuff] = []
+        self._cut_guide_visible = False
+        self._scissors_visible = False
+        self._cut_intro_elapsed = 0.0
+        self._cut_guide_reveal_delay = 0.2
+        self._scissors_reveal_delay = 0.55
         self._mouse_x = layout.width / 2
         self._mouse_y = layout.height / 2
         self.background_sprite = DrawableSprite(
@@ -4192,7 +4197,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             )
 
     def _advance_cut_progress(self, x: float, y: float, dx: float, dy: float) -> None:
-        if self._cut_complete or self._cut_path_length <= 0.0:
+        if self._cut_complete or not self._scissors_visible or self._cut_path_length <= 0.0:
             return
         distance, _ = self._nearest_cut_point(x, y)
         if distance > self._cut_band_width:
@@ -4247,7 +4252,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
 
     def _refresh_animation_state(self) -> None:
         if self._screen_ready:
-            self._set_scissors_cursor_visible(True)
+            self._set_scissors_cursor_visible(self._scissors_visible and not self._cut_complete)
 
     def update_layout(self, layout: GameLayout) -> None:
         super().update_layout(layout)
@@ -4264,14 +4269,23 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self.background_sprite.draw()
         if self._cut_complete:
             self.first_item_done_sprite.draw()
+        elif self._cut_guide_visible:
+            self.first_item_alt_sprite.draw()
         else:
             self.first_item_sprite.draw()
         self._draw_cut_clouds()
-        self.cursor_sprite.draw()
+        if self._scissors_visible and not self._cut_complete:
+            self.cursor_sprite.draw()
 
     def on_update(self, delta_time: float) -> None:
         if not self._screen_ready:
             return
+        if not self._cut_complete:
+            self._cut_intro_elapsed += delta_time
+            if self._cut_intro_elapsed >= self._cut_guide_reveal_delay:
+                self._cut_guide_visible = True
+            if self._cut_intro_elapsed >= self._scissors_reveal_delay:
+                self._scissors_visible = True
         self._update_mouse_position()
         self._prune_cut_effects()
         self._refresh_animation_state()
