@@ -643,14 +643,13 @@ def _make_sprite(
     return sprite
 
 
-def _fit_sprite_to_box(sprite: arcade.Sprite, max_width: float, max_height: float) -> None:
-    """Scale a sprite uniformly so it fits inside a target box."""
+def _scale_sprite_for_box(sprite: arcade.Sprite, max_width: float, max_height: float) -> float:
+    """Return the uniform scale a sprite needs to fit inside a target box."""
     texture = sprite.texture
     if texture.width <= 0 or texture.height <= 0:
-        return
+        return 1.0
 
-    scale = min(max_width / texture.width, max_height / texture.height)
-    sprite.scale = scale
+    return min(max_width / texture.width, max_height / texture.height)
 
 
 def _wrap_wardrobe_title(title: str) -> str:
@@ -3215,6 +3214,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         girl_center_y = (girl_bottom + girl_top) / 2
         girl_width = girl_right - girl_left
         girl_height = girl_top - girl_bottom
+        girl_scale = _scale_sprite_for_box(self.girl_sprite.sprite, girl_width, girl_height)
         if self.background_sprite is not None:
             self.background_sprite.center_x = girl_center_x
             self.background_sprite.center_y = girl_center_y
@@ -3222,7 +3222,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             self.background_sprite.height = girl_height
         self.girl_sprite.center_x = girl_center_x
         self.girl_sprite.center_y = girl_center_y
-        _fit_sprite_to_box(self.girl_sprite.sprite, girl_width, girl_height)
+        self.girl_sprite.scale = girl_scale
 
         equipped_lookup = {item.item_id: item for item in self.wardrobe.catalog}
         for category in WARDROBE_CATEGORY_ORDER:
@@ -3245,7 +3245,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             sprite.alpha = 255
             sprite.center_x = girl_center_x
             sprite.center_y = girl_center_y
-            _fit_sprite_to_box(sprite, girl_width, girl_height)
+            sprite.scale = girl_scale
 
         for category, sprite in self.outfit_sprites.items():
             if category not in self.wardrobe.equipped_by_category:
