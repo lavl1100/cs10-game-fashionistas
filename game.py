@@ -94,7 +94,7 @@ THRIFTING_CLOTHING_IMAGE_PATHS = [
 ]
 THRIFTING_RACK_SIZE = 12
 THRIFTING_STARTING_MONEY = 100
-THRIFTING_XP_PER_LEVEL = 200
+THRIFTING_XP_PER_LEVEL = 500
 THRIFTING_LEVEL_UP_REWARD = 100
 FAST_FASHION_FABRICS = ["polyester", "nylon", "rayon", "acrylic"]
 ECO_FABRICS = ["cotton", "linen", "wool", "hemp"]
@@ -1307,6 +1307,7 @@ class HomeView(arcade.View):
                     self.layout,
                     lambda: self._close_window(label),
                     self.progress,
+                    self.wallet,
                     self.energy,
                     self.music,
                 )
@@ -2248,11 +2249,13 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         layout: GameLayout,
         on_close: Callable[[], None],
         progress: Optional[PlayerProgress] = None,
+        wallet: Optional[PlayerWallet] = None,
         energy: Optional[PlayerEnergy] = None,
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
         self._social_ready = False
         self.progress = progress
+        self.wallet = wallet
         self.energy_state = energy if energy is not None else PlayerEnergy(10, 10)
         self.followers = 100
         self.day = 1
@@ -2493,6 +2496,13 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
                 SOCIAL_MEDIA_CARD_GOLD if levels_gained > 0 else SOCIAL_MEDIA_CARD_TEXT,
             )
             if levels_gained > 0:
+                if self.wallet is not None:
+                    reward = levels_gained * THRIFTING_LEVEL_UP_REWARD
+                    self.wallet.amount += reward
+                    self._notify(
+                        f"♡  +${reward} for {levels_gained} level{'s' if levels_gained != 1 else ''} up!",
+                        SOCIAL_MEDIA_CARD_GOLD,
+                    )
                 level_word = "level" if levels_gained == 1 else "levels"
                 self._notify(
                     f"♡  {levels_gained} {level_word} up from your social buzz!",
