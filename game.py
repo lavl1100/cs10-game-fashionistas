@@ -142,6 +142,7 @@ SOCIAL_MEDIA_SIDEBAR_MAX_WIDTH = 292
 SOCIAL_MEDIA_COMPOSE_WIDTH = 650
 SOCIAL_MEDIA_COMPOSE_HEIGHT = 468
 SOCIAL_MEDIA_COOLDOWN_SECONDS = 10 * 60.0
+SOCIAL_MEDIA_POST_COOLDOWN_SECONDS = 5.0
 SOCIAL_MEDIA_MAX_NOTIFICATIONS = 5
 
 PRESS_ANIMATION_TIME = 0.18
@@ -2259,6 +2260,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.eco_impact = 0
         self.total_likes = 0
         self.milestone_index = 0
+        self.post_cooldown_ends_at = 0.0
         self._followers_fraction = 0.0
         self.posts: list[SocialMediaPost] = []
         self.notifications: list[SocialMediaNotification] = []
@@ -2355,6 +2357,13 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
 
     def _cooldown_active(self, now: Optional[float] = None) -> bool:
         return self._cooldown_remaining(now) > 0.0
+
+    def _post_cooldown_remaining(self, now: Optional[float] = None) -> float:
+        current_time = _current_time() if now is None else now
+        return max(0.0, self.post_cooldown_ends_at - current_time)
+
+    def _post_cooldown_active(self, now: Optional[float] = None) -> bool:
+        return self._post_cooldown_remaining(now) > 0.0
 
     def _format_duration(self, seconds: float) -> str:
         total_seconds = max(0, int(math.ceil(seconds)))
@@ -2543,6 +2552,14 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             self.composing = False
             return
 
+        if self._post_cooldown_active():
+            self._notify(
+                f"Posting too fast - wait {self._format_duration(self._post_cooldown_remaining())} ♡",
+                SOCIAL_MEDIA_CARD_MUTED,
+            )
+            self.composing = False
+            return
+
         if self.energy <= 0:
             self._handle_energy_depleted()
             self.composing = False
@@ -2567,6 +2584,7 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.energy -= 1
         self.scroll = 0.0
         self.eco_impact += ptype.eco_points
+        self.post_cooldown_ends_at = _current_time() + SOCIAL_MEDIA_POST_COOLDOWN_SECONDS
         quality_label = (
             "serving sustainability ♡"
             if quality > 0.70
@@ -2714,8 +2732,9 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         follower_value_y = follower_label_y - self.layout.sy(30)
         day_label_y = follower_value_y - self.layout.sy(42)
         energy_label_y = day_label_y - self.layout.sy(38)
-        cooldown_active = self._cooldown_active()
         now = _current_time()
+        cooldown_active = self._cooldown_active(now)
+        post_cooldown_active = self._post_cooldown_active(now)
 
         arcade.Text(
             "followers",
@@ -2814,6 +2833,10 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             ("active posts", str(len(self.posts))),
             ("total likes", f"{self.total_likes:,}"),
         ]
+        if post_cooldown_active:
+            stats_rows.append(
+                ("posting cooldown", self._format_duration(self._post_cooldown_remaining(now)))
+            )
         row_y = stats_top
         for label, value in stats_rows:
             arcade.Text(
