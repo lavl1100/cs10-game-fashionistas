@@ -698,32 +698,37 @@ class DrawableSprite:
 
 
 class GameCursor:
-    """Shared cursor sprite for non-upcycling screens."""
+    """Shared native cursor for non-upcycling screens."""
 
-    def __init__(self, layout: GameLayout) -> None:
-        self.layout = layout
-        self.sprite = DrawableSprite(
-            _make_sprite(
-                GAME_CURSOR_IMAGE_PATH,
-                layout.width / 2,
-                layout.height / 2,
-                layout.ss(GAME_CURSOR_SIZE),
-                layout.ss(GAME_CURSOR_SIZE),
-                THEME_DEEP_PURPLE,
-            )
-        )
+    def __init__(self) -> None:
+        self._texture = arcade.load_texture(str(GAME_CURSOR_IMAGE_PATH))
+        self._cursor = None
+
+    def _ensure_cursor(self):
+        if self._cursor is None:
+            from pyglet.window import ImageMouseCursor
+
+            # The image is designed like a stylized pointer, so the hotspot
+            # sits near the top-left corner rather than the center.
+            self._cursor = ImageMouseCursor(self._texture.image, 0, 0)
+        return self._cursor
+
+    def apply(self, window: arcade.Window) -> None:
+        window.set_mouse_cursor(self._ensure_cursor())
+        window.set_mouse_visible(True)
+
+    def hide(self, window: arcade.Window) -> None:
+        window.set_mouse_cursor(None)
+        window.set_mouse_visible(False)
 
     def update_layout(self, layout: GameLayout) -> None:
-        self.layout = layout
-        self.sprite.width = layout.ss(GAME_CURSOR_SIZE)
-        self.sprite.height = layout.ss(GAME_CURSOR_SIZE)
+        pass
 
     def sync_position(self, x: float, y: float) -> None:
-        self.sprite.center_x = x
-        self.sprite.center_y = y
+        pass
 
     def draw(self) -> None:
-        self.sprite.draw()
+        pass
 
 
 @dataclass(frozen=True)
@@ -1386,7 +1391,7 @@ class HomeView(arcade.View):
         self.active_window: Optional[ComputerWindowOverlay] = None
         self.social_media_window: Optional[SocialMediaGameOverlay] = None
         self._pressed_button: Optional[HomeButton] = None
-        self.cursor = GameCursor(self.layout)
+        self.cursor = GameCursor()
         self._build_buttons()
         self._sync_clock_text()
         self._apply_layout(self.layout)
@@ -1517,9 +1522,11 @@ class HomeView(arcade.View):
             self._open_thrifting_game,
             self.music,
         )
+        self._sync_cursor_mode()
 
     def _close_activity_window(self) -> None:
         self.active_window = None
+        self._sync_cursor_mode()
 
     def _open_upcycling_game(self) -> None:
         self.active_window = UpcyclingGameOverlay(
@@ -1529,6 +1536,7 @@ class HomeView(arcade.View):
             self.progress,
             self.music,
         )
+        self._sync_cursor_mode()
 
     def _open_thrifting_game(self) -> None:
         self.active_window = ThriftingGameOverlay(
@@ -1538,6 +1546,7 @@ class HomeView(arcade.View):
             self.progress,
             self.music,
         )
+        self._sync_cursor_mode()
 
     def _open_window(self, label: str) -> None:
         if self.active_window is not None and self.active_window.title == "Social Media" and label != "social media":
@@ -1556,6 +1565,7 @@ class HomeView(arcade.View):
             else:
                 self.social_media_window.update_layout(self.layout)
             self.active_window = self.social_media_window
+            self._sync_cursor_mode()
             return
         self.active_window = ComputerWindowOverlay(
             self.layout,
@@ -1563,6 +1573,7 @@ class HomeView(arcade.View):
             on_close=lambda: self._close_window(label),
             music=self.music,
         )
+        self._sync_cursor_mode()
 
     def _set_button_active(self, label: str, is_active: bool) -> None:
         for button in self.buttons:
@@ -1574,30 +1585,20 @@ class HomeView(arcade.View):
         self.active_window = None
         if label == "social media":
             self._set_button_active(label, False)
+        self._sync_cursor_mode()
 
-    def _sync_cursor_position(self, x: Optional[float] = None, y: Optional[float] = None) -> None:
-        if x is not None and y is not None:
-            self.cursor.sync_position(x, y)
-            return
+    def _sync_cursor_mode(self) -> None:
         if self.window is None:
-            self.cursor.sync_position(self.layout.width / 2, self.layout.height / 2)
             return
-        mouse_x = getattr(self.window, "_mouse_x", None)
-        mouse_y = getattr(self.window, "_mouse_y", None)
-        if mouse_x is None or mouse_y is None:
-            self.cursor.sync_position(self.layout.width / 2, self.layout.height / 2)
-            return
-        self.cursor.sync_position(mouse_x, mouse_y)
-
-    def _should_draw_cursor(self) -> bool:
-        return not isinstance(self.active_window, UpcyclingGameOverlay)
+        if isinstance(self.active_window, UpcyclingGameOverlay):
+            self.cursor.hide(self.window)
+        else:
+            self.cursor.apply(self.window)
 
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
         self.music.start()
-        if self.window is not None:
-            self.window.set_mouse_visible(False)
-        self._sync_cursor_position()
+        self._sync_cursor_mode()
         self._pressed_button = None
         for button in self.buttons:
             button.reset()
@@ -1624,8 +1625,6 @@ class HomeView(arcade.View):
             button.draw()
         if self.active_window is not None:
             self.active_window.draw()
-        if self._should_draw_cursor():
-            self.cursor.draw()
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> None:
         if button != arcade.MOUSE_BUTTON_LEFT:
@@ -1672,7 +1671,6 @@ class HomeView(arcade.View):
             self.active_window.on_mouse_scroll(x, y, scroll_x, scroll_y)
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float) -> None:
-        self._sync_cursor_position(x, y)
         if self.active_window is not None:
             self.active_window.on_mouse_motion(x, y, dx, dy)
 
@@ -1712,7 +1710,7 @@ class ActivityMenuView(arcade.View):
         self.left_button: Optional[SpriteButtonPanel] = None
         self.right_button: Optional[SpriteButtonPanel] = None
         self.home_button: Optional[SpriteButtonPanel] = None
-        self.cursor = GameCursor(self.layout)
+        self.cursor = GameCursor()
         self._apply_layout(self.layout)
 
     def _show_home(self) -> None:
@@ -1788,27 +1786,12 @@ class ActivityMenuView(arcade.View):
             )
         self.cursor.update_layout(layout)
 
-    def _sync_cursor_position(self, x: Optional[float] = None, y: Optional[float] = None) -> None:
-        if x is not None and y is not None:
-            self.cursor.sync_position(x, y)
-            return
-        if self.window is None:
-            self.cursor.sync_position(self.layout.width / 2, self.layout.height / 2)
-            return
-        mouse_x = getattr(self.window, "_mouse_x", None)
-        mouse_y = getattr(self.window, "_mouse_y", None)
-        if mouse_x is None or mouse_y is None:
-            self.cursor.sync_position(self.layout.width / 2, self.layout.height / 2)
-            return
-        self.cursor.sync_position(mouse_x, mouse_y)
-
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
         self.music.start()
         if self.window is not None:
-            self.window.set_mouse_visible(False)
+            self.cursor.apply(self.window)
             self._apply_layout(GameLayout(self.window.width, self.window.height))
-        self._sync_cursor_position()
 
     def on_draw(self) -> None:
         self.clear()
@@ -1818,10 +1801,8 @@ class ActivityMenuView(arcade.View):
             self.right_button.draw()
         if self.home_button is not None:
             self.home_button.draw()
-        self.cursor.draw()
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> bool:
-        self._sync_cursor_position(x, y)
         if button != arcade.MOUSE_BUTTON_LEFT:
             return False
         if self.left_button is not None and self.left_button.hit_test(x, y):
@@ -1846,7 +1827,7 @@ class ActivityMenuView(arcade.View):
             self.home_button.release()
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float) -> None:
-        self._sync_cursor_position(x, y)
+        pass
 
     def on_key_press(self, key: int, modifiers: int) -> None:
         if key == arcade.key.ESCAPE:
@@ -1878,7 +1859,7 @@ class ActivityDetailView(arcade.View):
         self.background_color = background_color
         self.accent_color = accent_color
         self.layout = GameLayout(DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT)
-        self.cursor = GameCursor(self.layout)
+        self.cursor = GameCursor()
         self.title_text = arcade.Text(
             self.title,
             0,
@@ -1963,27 +1944,12 @@ class ActivityDetailView(arcade.View):
             )
         self.cursor.update_layout(layout)
 
-    def _sync_cursor_position(self, x: Optional[float] = None, y: Optional[float] = None) -> None:
-        if x is not None and y is not None:
-            self.cursor.sync_position(x, y)
-            return
-        if self.window is None:
-            self.cursor.sync_position(self.layout.width / 2, self.layout.height / 2)
-            return
-        mouse_x = getattr(self.window, "_mouse_x", None)
-        mouse_y = getattr(self.window, "_mouse_y", None)
-        if mouse_x is None or mouse_y is None:
-            self.cursor.sync_position(self.layout.width / 2, self.layout.height / 2)
-            return
-        self.cursor.sync_position(mouse_x, mouse_y)
-
     def on_show_view(self) -> None:
         arcade.set_background_color(self.background_color)
         self.music.start()
         if self.window is not None:
-            self.window.set_mouse_visible(False)
+            self.cursor.apply(self.window)
             self._apply_layout(GameLayout(self.window.width, self.window.height))
-        self._sync_cursor_position()
 
     def on_draw(self) -> None:
         self.clear()
@@ -2006,10 +1972,8 @@ class ActivityDetailView(arcade.View):
             self.back_button.draw()
         if self.home_button is not None:
             self.home_button.draw()
-        self.cursor.draw()
 
     def on_mouse_press(self, x: float, y: float, button: int, modifiers: int) -> bool:
-        self._sync_cursor_position(x, y)
         if button != arcade.MOUSE_BUTTON_LEFT:
             return False
         if self.back_button is not None and self.back_button.hit_test(x, y):
@@ -2029,7 +1993,7 @@ class ActivityDetailView(arcade.View):
             self.home_button.release()
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float) -> None:
-        self._sync_cursor_position(x, y)
+        pass
 
     def on_key_press(self, key: int, modifiers: int) -> None:
         if key == arcade.key.ESCAPE:
