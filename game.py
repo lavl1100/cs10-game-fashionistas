@@ -1506,8 +1506,15 @@ class HomeView(arcade.View):
         self.active_window: Optional[ComputerWindowOverlay] = None
         self.social_media_window: Optional[SocialMediaGameOverlay] = None
         self._pressed_button: Optional[HomeButton] = None
+        self._last_clock_minute: Optional[tuple[int, int, int, int, int]] = None
+        self._last_money_amount: Optional[int] = None
+        self._last_energy_percentage: Optional[str] = None
+        self._last_level_summary: Optional[str] = None
         self._build_buttons()
-        self._sync_clock_text()
+        self._sync_clock_text(force=True)
+        self._sync_money_box(force=True)
+        self._sync_energy_box(force=True)
+        self._sync_level_box(force=True)
         self._apply_layout(self.layout)
 
     def _build_background_sprite(self, layout: GameLayout) -> arcade.Sprite:
@@ -1520,19 +1527,34 @@ class HomeView(arcade.View):
             THEME_DEEP_PURPLE,
         )
 
-    def _sync_clock_text(self) -> None:
+    def _sync_clock_text(self, force: bool = False) -> None:
         now = datetime.now()
+        minute_key = (now.year, now.month, now.day, now.hour, now.minute)
+        if not force and minute_key == self._last_clock_minute:
+            return
+        self._last_clock_minute = minute_key
         self.date_text.text = now.strftime("%b %d, %Y")
         self.time_text.text = now.strftime("%I:%M %p").lstrip("0")
 
-    def _sync_money_box(self) -> None:
+    def _sync_money_box(self, force: bool = False) -> None:
+        if not force and self._last_money_amount == self.wallet.amount:
+            return
+        self._last_money_amount = self.wallet.amount
         self.money_box.set_value(f"${self.wallet.amount}")
 
-    def _sync_energy_box(self) -> None:
-        self.energy_box.set_value(self.energy.percentage_text())
+    def _sync_energy_box(self, force: bool = False) -> None:
+        percentage_text = self.energy.percentage_text()
+        if not force and self._last_energy_percentage == percentage_text:
+            return
+        self._last_energy_percentage = percentage_text
+        self.energy_box.set_value(percentage_text)
 
-    def _sync_level_box(self) -> None:
-        self.level_box.set_value(f"{self.progress.level} ({self.progress.experience}/{THRIFTING_XP_PER_LEVEL})")
+    def _sync_level_box(self, force: bool = False) -> None:
+        level_summary = f"{self.progress.level} ({self.progress.experience}/{THRIFTING_XP_PER_LEVEL})"
+        if not force and self._last_level_summary == level_summary:
+            return
+        self._last_level_summary = level_summary
+        self.level_box.set_value(level_summary)
 
     def _build_buttons(self) -> None:
         labels = [
@@ -3055,6 +3077,7 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
         self.tab_buttons: list[WardrobeTabButton] = []
         self.item_cards: list[WardrobeItemCard] = []
         self.outfit_sprites: dict[str, arcade.Sprite] = {}
+        self._outfit_sprite_item_ids: dict[str, str] = {}
         self.background_sprite: Optional[DrawableSprite] = None
         if self.background_image_path is not None:
             self.background_sprite = DrawableSprite(
@@ -3314,13 +3337,13 @@ class WardrobeCatalogOverlay(ComputerWindowOverlay):
             if item is None:
                 if sprite is not None:
                     sprite.alpha = 0
+                self._outfit_sprite_item_ids.pop(category, None)
                 continue
 
-            if sprite is None:
+            if sprite is None or self._outfit_sprite_item_ids.get(category) != item.item_id:
                 sprite = arcade.Sprite(item.image_path)
                 self.outfit_sprites[category] = sprite
-            else:
-                sprite.texture = arcade.load_texture(str(item.image_path))
+                self._outfit_sprite_item_ids[category] = item.item_id
 
             sprite.alpha = 255
             sprite.center_x = girl_center_x
@@ -3794,6 +3817,8 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         self.scroll = 0.0
         self.composing = False
         self.hover_idx = -1
+        self._text_cache: dict[tuple[object, ...], arcade.Text] = {}
+        self._post_layout_cache: dict[tuple[int, int, int], tuple[float, list[str]]] = {}
         self.sidebar_post_button: Optional[SpriteButtonPanel] = None
         self.compose_buttons: list[SpriteButtonPanel] = []
         self.sidebar_title_text = arcade.Text(
@@ -4082,6 +4107,10 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
         return lines
 
     def _post_card_layout(self, post: SocialMediaPost, width: float) -> tuple[float, list[str]]:
+        cache_key = (id(post), int(round(width)), int(round(self.layout.ss(12) * 100)))
+        cached_layout = self._post_layout_cache.get(cache_key)
+        if cached_layout is not None:
+            return cached_layout
         pad_x = self.layout.sx(12)
         text_font_size = self.layout.ss(12)
         lines = self._wrap_text(post.text, max(0.0, width - pad_x * 2), text_font_size)
@@ -4099,7 +4128,9 @@ class SocialMediaGameOverlay(ComputerWindowOverlay):
             + stats_height
             + self.layout.sy(18)
         )
-        return max(self.layout.sy(SOCIAL_MEDIA_CARD_HEIGHT), required_height), lines
+        layout = (max(self.layout.sy(SOCIAL_MEDIA_CARD_HEIGHT), required_height), lines)
+        self._post_layout_cache[cache_key] = layout
+        return layout
 
     def _create_post(self, ptype: SocialMediaPostType) -> None:
         if self._cooldown_active():
