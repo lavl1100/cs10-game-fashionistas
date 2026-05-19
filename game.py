@@ -3903,10 +3903,15 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         music: Optional[BackgroundMusicPlaylist] = None,
     ) -> None:
         self._screen_ready = False
-        self._swapped_item = False
+        self._cut_complete = False
+        self._cut_progress = 0.0
+        self._cut_band_width = max(layout.ss(12), layout.sy(10))
+        self._cut_path_points: list[tuple[float, float]] = []
+        self._cut_path_length = 1.0
+        self._cut_trail: list[tuple[float, float, float]] = []
+        self._cut_sparks: list[CutSpark] = []
         self._mouse_x = layout.width / 2
         self._mouse_y = layout.height / 2
-        self._upcycling_started_at = _current_time()
         self.background_sprite = DrawableSprite(
             _make_sprite(
                 UPCYCLING_BACKGROUND_IMAGE_PATH,
@@ -3939,6 +3944,17 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
                 crop_to_fit=True,
             )
         )
+        self.first_item_done_sprite = DrawableSprite(
+            _make_sprite(
+                UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH,
+                layout.width / 2,
+                layout.height / 2,
+                layout.width * 0.42,
+                layout.height * 0.42,
+                THRIFTING_CONTENT_FILL,
+                crop_to_fit=True,
+            )
+        )
         self.cursor_sprite = DrawableSprite(
             _make_sprite(
                 UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH,
@@ -3961,6 +3977,27 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             bottom + self.layout.sy(18),
             top - self.layout.window_header_height - self.layout.sy(16),
         )
+
+    def _build_cut_path(self) -> None:
+        content_left, content_right, content_bottom, content_top = self._content_bounds()
+        content_width = max(1.0, content_right - content_left)
+        content_height = max(1.0, content_top - content_bottom)
+        center_y = content_bottom + content_height * 0.52
+        wave = content_height * 0.06
+        points = [
+            (content_left + content_width * 0.18, center_y - wave * 0.75),
+            (content_left + content_width * 0.34, center_y + wave * 0.25),
+            (content_left + content_width * 0.50, center_y - wave * 0.40),
+            (content_left + content_width * 0.66, center_y + wave * 0.35),
+            (content_right - content_width * 0.18, center_y - wave * 0.60),
+        ]
+        self._cut_path_points = points
+        self._cut_path_length = 0.0
+        for index in range(len(points) - 1):
+            ax, ay = points[index]
+            bx, by = points[index + 1]
+            self._cut_path_length += math.hypot(bx - ax, by - ay)
+        self._cut_band_width = max(self.layout.ss(12), content_height * 0.05)
 
     def _upcycling_window_size(self, layout: GameLayout) -> tuple[float, float]:
         """Size the window so the upcycling art keeps its native aspect ratio."""
@@ -3995,13 +4032,160 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             sprite.center_y = (content_bottom + content_top) / 2
             sprite.width = garment_width
             sprite.height = garment_height
+        self.first_item_done_sprite.center_x = (content_left + content_right) / 2
+        self.first_item_done_sprite.center_y = (content_bottom + content_top) / 2
+        self.first_item_done_sprite.width = garment_width
+        self.first_item_done_sprite.height = garment_height
         self.cursor_sprite.width = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
         self.cursor_sprite.height = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
         self._sync_cursor_position()
+        self._build_cut_path()
 
     def _sync_cursor_position(self) -> None:
         self.cursor_sprite.center_x = self._mouse_x
         self.cursor_sprite.center_y = self._mouse_y
+
+    @staticmethod
+    def _point_to_segment_distance(
+        point_x: float,
+        point_y: float,
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        end_y: float,
+    ) -> tuple[float, float]:
+        segment_dx = end_x - start_x
+        segment_dy = end_y - start_y
+        segment_length_sq = segment_dx * segment_dx + segment_dy * segment_dy
+        if segment_length_sq <= 0.0:
+            return math.hypot(point_x - start_x, point_y - start_y), 0.0
+        t = ((point_x - start_x) * segment_dx + (point_y - start_y) * segment_dy) / segment_length_sq
+        t = max(0.0, min(1.0, t))
+        nearest_x = start_x + segment_dx * t
+        nearest_y = start_y + segment_dy * t
+        return math.hypot(point_x - nearest_x, point_y - nearest_y), t
+
+    def _nearest_cut_point(self, x: float, y: float) -> tuple[float, float]:
+        if len(self._cut_path_points) < 2:
+            return float("inf"), 0.0
+
+        best_distance = float("inf")
+        best_progress = 0.0
+        distance_before_segment = 0.0
+        for index in range(len(self._cut_path_points) - 1):
+            start_x, start_y = self._cut_path_points[index]
+            end_x, end_y = self._cut_path_points[index + 1]
+            segment_length = math.hypot(end_x - start_x, end_y - start_y)
+            if segment_length <= 0.0:
+                continue
+            distance, t = self._point_to_segment_distance(x, y, start_x, start_y, end_x, end_y)
+            if distance < best_distance:
+                best_distance = distance
+                best_progress = (distance_before_segment + segment_length * t) / max(self._cut_path_length, 1.0)
+            distance_before_segment += segment_length
+        return best_distance, best_progress
+
+    def _spawn_cut_sparks(self, x: float, y: float, motion_strength: float) -> None:
+        now = _current_time()
+        spark_count = max(2, min(5, int(motion_strength / max(self.layout.ss(4), 4)) + 2))
+        for _ in range(spark_count):
+            angle = random.uniform(-math.pi / 2, math.pi / 2)
+            speed = random.uniform(self.layout.ss(70), self.layout.ss(140))
+            self._cut_sparks.append(
+                CutSpark(
+                    x=x + random.uniform(-self.layout.ss(4), self.layout.ss(4)),
+                    y=y + random.uniform(-self.layout.ss(4), self.layout.ss(4)),
+                    vx=math.cos(angle) * speed,
+                    vy=math.sin(angle) * speed + self.layout.ss(18),
+                    spawned_at=now,
+                    lifetime=random.uniform(0.25, 0.55),
+                    color=(255, random.randint(205, 235), random.randint(220, 250)),
+                )
+            )
+
+    def _advance_cut_progress(self, x: float, y: float, dx: float, dy: float) -> None:
+        if self._cut_complete or self._cut_path_length <= 0.0:
+            return
+        distance, _ = self._nearest_cut_point(x, y)
+        if distance > self._cut_band_width:
+            return
+
+        motion_strength = math.hypot(dx, dy)
+        if motion_strength <= 0.0:
+            return
+
+        proximity_bonus = 1.0 - min(1.0, distance / self._cut_band_width)
+        progress_gain = (motion_strength / self._cut_path_length) * (0.9 + proximity_bonus)
+        self._cut_progress = min(1.0, self._cut_progress + progress_gain)
+        self._cut_trail.append((x, y, _current_time()))
+        self._cut_trail = self._cut_trail[-18:]
+        self._spawn_cut_sparks(x, y, motion_strength)
+        if self._cut_progress >= 1.0:
+            self._cut_complete = True
+            self._cut_trail.clear()
+
+    def _prune_cut_effects(self) -> None:
+        now = _current_time()
+        self._cut_sparks = [
+            spark for spark in self._cut_sparks if now - spark.spawned_at <= spark.lifetime
+        ]
+        self._cut_trail = [
+            sample for sample in self._cut_trail if now - sample[2] <= 0.6
+        ]
+
+    def _draw_cut_overlay(self) -> None:
+        if len(self._cut_path_points) < 2:
+            return
+
+        now = _current_time()
+        dot_spacing = max(self.layout.ss(10), 10.0)
+        base_radius = max(self.layout.ss(2.5), 2.5)
+        completed_length = self._cut_path_length * self._cut_progress
+        distance_before_segment = 0.0
+        for index in range(len(self._cut_path_points) - 1):
+            start_x, start_y = self._cut_path_points[index]
+            end_x, end_y = self._cut_path_points[index + 1]
+            segment_length = math.hypot(end_x - start_x, end_y - start_y)
+            if segment_length <= 0.0:
+                continue
+
+            arcade.draw_line(
+                start_x,
+                start_y,
+                end_x,
+                end_y,
+                (236, 183, 226, 90),
+                max(1, self.layout.ss(1.5)),
+            )
+            dot_count = max(2, int(segment_length / dot_spacing))
+            for dot_index in range(dot_count + 1):
+                t = dot_index / dot_count
+                x = start_x + (end_x - start_x) * t
+                y = start_y + (end_y - start_y) * t
+                distance_along_path = distance_before_segment + segment_length * t
+                if distance_along_path <= completed_length:
+                    color = (255, 252, 255, 230)
+                    radius = base_radius * 1.45
+                else:
+                    pulse = 0.5 + 0.5 * math.sin(now * 6.0 + index * 0.75 + dot_index * 0.4)
+                    color = (255, 214, 235, int(85 + 85 * pulse))
+                    radius = base_radius
+                arcade.draw_circle_filled(x, y, radius, color)
+            distance_before_segment += segment_length
+
+        for start_x, start_y, start_time in self._cut_trail:
+            trail_alpha = int(max(0.0, 1.0 - (now - start_time) / 0.6) * 180)
+            if trail_alpha <= 0:
+                continue
+            arcade.draw_circle_filled(start_x, start_y, base_radius * 1.35, (255, 255, 255, trail_alpha))
+
+        for spark in self._cut_sparks:
+            spark_x, spark_y = spark.position_at(now)
+            spark_alpha = spark.alpha_at(now)
+            if spark_alpha <= 0:
+                continue
+            r, g, b = spark.color
+            arcade.draw_circle_filled(spark_x, spark_y, self.layout.ss(2.6), (r, g, b, spark_alpha))
 
     def _update_mouse_position(self) -> None:
         window = arcade.get_window()
@@ -4020,10 +4204,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             window.set_mouse_visible(not visible)
 
     def _refresh_animation_state(self) -> None:
-        if self._swapped_item:
-            return
-        if _current_time() - self._upcycling_started_at >= UPCYCLING_FIRST_ITEM_SWAP_SECONDS:
-            self._swapped_item = True
+        if self._screen_ready:
             self._set_scissors_cursor_visible(True)
 
     def update_layout(self, layout: GameLayout) -> None:
@@ -4033,31 +4214,48 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self.window_width, self.window_height = self._upcycling_window_size(layout)
         self._set_center(layout.width / 2, layout.height / 2 - layout.sy(8))
         self._sync_background()
+        self._prune_cut_effects()
         self._refresh_animation_state()
 
     def on_draw(self) -> None:
         super().on_draw()
         self.background_sprite.draw()
-        if self._swapped_item:
+        if self._cut_complete:
+            self.first_item_done_sprite.draw()
+        elif self._cut_progress > 0.0:
             self.first_item_alt_sprite.draw()
         else:
             self.first_item_sprite.draw()
-        if self._swapped_item:
-            self.cursor_sprite.draw()
+        self._draw_cut_overlay()
+        self.cursor_sprite.draw()
 
     def on_update(self, delta_time: float) -> None:
         if not self._screen_ready:
             return
         self._update_mouse_position()
+        self._prune_cut_effects()
         self._refresh_animation_state()
-        if self._swapped_item:
-            self._sync_cursor_position()
+        self._sync_cursor_position()
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float) -> None:
         self._mouse_x = x
         self._mouse_y = y
-        if self._swapped_item:
-            self._sync_cursor_position()
+        self._advance_cut_progress(x, y, dx, dy)
+        self._sync_cursor_position()
+
+    def on_mouse_drag(
+        self,
+        x: float,
+        y: float,
+        dx: float,
+        dy: float,
+        buttons: int,
+        modifiers: int,
+    ) -> None:
+        self._mouse_x = x
+        self._mouse_y = y
+        self._advance_cut_progress(x, y, dx, dy)
+        self._sync_cursor_position()
 
     def on_key_press(self, key: int, modifiers: int) -> None:
         if key == arcade.key.ESCAPE:
