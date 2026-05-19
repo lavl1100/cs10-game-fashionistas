@@ -3965,6 +3965,23 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
 
         return smoothed_points
 
+    @staticmethod
+    def _build_alpha_mask(image_path: Path) -> tuple[bytes, int, int]:
+        """Cache the opaque pixels for a garment image.
+
+        The upcycling mini-game should react to the actual clothing artwork,
+        not the transparent padding around it. We store the alpha channel as a
+        compact byte buffer so hit tests stay fast.
+        """
+        try:
+            texture = arcade.load_texture(str(image_path))
+            image = texture.image.convert("RGBA")
+        except Exception:
+            return b"", 0, 0
+
+        alpha = image.getchannel("A").tobytes()
+        return alpha, image.width, image.height
+
     def __init__(
         self,
         layout: GameLayout,
@@ -3976,6 +3993,11 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._cut_progress = 0.0
         self._cut_band_width = max(layout.ss(12), layout.sy(10))
         self._cut_path_template = self._build_cut_path_template(UPCYCLING_FIRST_ITEM_IMAGE_PATH)
+        self._cut_alpha_masks = {
+            UPCYCLING_FIRST_ITEM_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_IMAGE_PATH),
+            UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH),
+            UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH: self._build_alpha_mask(UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH),
+        }
         self._cut_path_points: list[tuple[float, float]] = []
         self._cut_path_length = 1.0
         self._cut_clouds: list[CutCloudPuff] = []
@@ -4042,6 +4064,13 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         super().__init__(layout, "Upcycling Station", on_close, music)
         self._screen_ready = True
         self.update_layout(layout)
+
+    def _active_cut_sprite_path(self) -> Path:
+        if self._cut_complete:
+            return UPCYCLING_FIRST_ITEM_DONE_IMAGE_PATH
+        if self._cut_guide_visible:
+            return UPCYCLING_FIRST_ITEM_ALT_IMAGE_PATH
+        return UPCYCLING_FIRST_ITEM_IMAGE_PATH
 
     def _content_bounds(self) -> tuple[float, float, float, float]:
         left, right, bottom, top = self._bounds()
@@ -4174,6 +4203,33 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
             distance_before_segment += segment_length
         return best_distance, best_progress
 
+    def _point_is_on_cut_clothing(self, x: float, y: float) -> bool:
+        """Return True when the cursor is on an opaque garment pixel."""
+        sprite_path = self._active_cut_sprite_path()
+        alpha_mask, image_width, image_height = self._cut_alpha_masks.get(sprite_path, (b"", 0, 0))
+        sprite = self.first_item_done_sprite.sprite if self._cut_complete else (
+            self.first_item_alt_sprite.sprite if self._cut_guide_visible else self.first_item_sprite.sprite
+        )
+        if not alpha_mask or image_width <= 0 or image_height <= 0:
+            return sprite.collides_with_point((x, y))
+
+        if sprite.width <= 0.0 or sprite.height <= 0.0:
+            return False
+
+        left = sprite.center_x - sprite.width / 2
+        right = sprite.center_x + sprite.width / 2
+        bottom = sprite.center_y - sprite.height / 2
+        top = sprite.center_y + sprite.height / 2
+        if x < left or x > right or y < bottom or y > top:
+            return False
+
+        x_ratio = (x - left) / sprite.width
+        y_ratio = (y - bottom) / sprite.height
+        pixel_x = min(image_width - 1, max(0, int(x_ratio * (image_width - 1))))
+        # Screen coordinates count upward, while texture rows start at the top.
+        pixel_y = min(image_height - 1, max(0, int((1.0 - y_ratio) * (image_height - 1))))
+        return alpha_mask[pixel_y * image_width + pixel_x] > 0
+
     def _spawn_cut_clouds(self, x: float, y: float, motion_strength: float, burst: bool = False) -> None:
         now = _current_time()
         cloud_count = 4 if burst else max(2, min(4, int(motion_strength / max(self.layout.ss(4), 4)) + 1))
@@ -4198,6 +4254,8 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
 
     def _advance_cut_progress(self, x: float, y: float, dx: float, dy: float) -> None:
         if self._cut_complete or not self._scissors_visible or self._cut_path_length <= 0.0:
+            return
+        if not self._point_is_on_cut_clothing(x, y):
             return
         distance, _ = self._nearest_cut_point(x, y)
         if distance > self._cut_band_width:
