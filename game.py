@@ -4119,6 +4119,28 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
                 crop_to_fit=True,
             )
         )
+        self.third_item_sprite = DrawableSprite(
+            _make_sprite(
+                UPCYCLING_THIRD_ITEM_IMAGE_PATH,
+                layout.width / 2,
+                layout.height / 2,
+                layout.width * 0.42,
+                layout.height * 0.42,
+                THRIFTING_CONTENT_FILL,
+                crop_to_fit=True,
+            )
+        )
+        self.third_item_done_sprite = DrawableSprite(
+            _make_sprite(
+                UPCYCLING_THIRD_ITEM_DONE_IMAGE_PATH,
+                layout.width / 2,
+                layout.height / 2,
+                layout.width * 0.42,
+                layout.height * 0.42,
+                THRIFTING_CONTENT_FILL,
+                crop_to_fit=True,
+            )
+        )
         self.cursor_sprite = DrawableSprite(
             _make_sprite(
                 UPCYCLING_SCISSORS_CURSOR_IMAGE_PATH,
@@ -4143,15 +4165,19 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._screen_ready = True
         self.update_layout(layout)
 
-    def _current_cut_stage_paths(self) -> tuple[Path, Path, Path]:
+    def _current_cut_stage(self) -> UpcyclingCutStage:
         return self._cut_stage_paths[min(self._cut_stage_index, len(self._cut_stage_paths) - 1)]
 
+    def _current_cut_stage_paths(self) -> tuple[Path, Optional[Path], Path]:
+        stage = self._current_cut_stage()
+        return stage.base_path, stage.guide_path, stage.done_path
+
     def _active_cut_sprite_path(self) -> Path:
-        base_path, alt_path, done_path = self._current_cut_stage_paths()
+        base_path, guide_path, done_path = self._current_cut_stage_paths()
         if self._cut_complete:
             return done_path
-        if self._cut_guide_visible:
-            return alt_path
+        if guide_path is not None and self._cut_guide_visible:
+            return guide_path
         return base_path
 
     def _active_cut_sprite(self) -> DrawableSprite:
@@ -4162,10 +4188,14 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
                 return self.first_item_alt_sprite
             return self.first_item_sprite
         if self._cut_complete:
-            return self.second_item_done_sprite
-        if self._cut_guide_visible:
-            return self.second_item_alt_sprite
-        return self.second_item_sprite
+            return self.third_item_done_sprite
+        return self.third_item_sprite
+
+    def _active_cursor_sprite(self) -> DrawableSprite:
+        stage = self._current_cut_stage()
+        if stage.cursor_path == UPCYCLING_NEEDLE_CURSOR_IMAGE_PATH:
+            return self.needle_cursor_sprite
+        return self.cursor_sprite
 
     def _advance_to_next_cut_stage(self) -> None:
         if self._cut_stage_index >= len(self._cut_stage_paths) - 1:
@@ -4265,19 +4295,29 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self.first_item_done_sprite.center_y = (content_bottom + content_top) / 2
         self.first_item_done_sprite.width = garment_width
         self.first_item_done_sprite.height = garment_height
-        for sprite in (self.second_item_sprite, self.second_item_alt_sprite, self.second_item_done_sprite):
+        for sprite in (
+            self.second_item_sprite,
+            self.second_item_alt_sprite,
+            self.second_item_done_sprite,
+            self.third_item_sprite,
+            self.third_item_done_sprite,
+        ):
             sprite.center_x = (content_left + content_right) / 2
             sprite.center_y = (content_bottom + content_top) / 2
             sprite.width = garment_width
             sprite.height = garment_height
         self.cursor_sprite.width = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
         self.cursor_sprite.height = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
+        self.needle_cursor_sprite.width = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
+        self.needle_cursor_sprite.height = self.layout.ss(UPCYCLING_SCISSORS_CURSOR_SIZE)
         self._sync_cursor_position()
         self._build_cut_path()
 
     def _sync_cursor_position(self) -> None:
         self.cursor_sprite.center_x = self._mouse_x
         self.cursor_sprite.center_y = self._mouse_y
+        self.needle_cursor_sprite.center_x = self._mouse_x
+        self.needle_cursor_sprite.center_y = self._mouse_y
 
     @staticmethod
     def _point_to_segment_distance(
@@ -4443,7 +4483,7 @@ class UpcyclingGameOverlay(ComputerWindowOverlay):
         self._active_cut_sprite().draw()
         self._draw_cut_clouds()
         if self._scissors_visible and not self._cut_complete:
-            self.cursor_sprite.draw()
+            self._active_cursor_sprite().draw()
 
     def on_update(self, delta_time: float) -> None:
         if not self._screen_ready:
